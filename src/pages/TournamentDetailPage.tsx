@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
-import { Tournament, calculateTotalPrizePool, getPrizeForRank } from '@/types';
+import { calculateTotalPrizePool } from '@/types';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import PaymentDialog from '@/components/PaymentDialog';
 import {
   Trophy,
   Users,
@@ -32,6 +33,7 @@ const TournamentDetailPage: React.FC = () => {
   
   const [isJoining, setIsJoining] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   const tournament = tournaments.find((t) => t.id === id);
   const registration = userRegistrations.find((r) => r.tournamentId === id);
@@ -61,7 +63,7 @@ const TournamentDetailPage: React.FC = () => {
   const spotsLeft = tournament.maxPlayers - (tournament.registeredCount || 0);
   const fillPercentage = ((tournament.registeredCount || 0) / tournament.maxPlayers) * 100;
 
-  const handleJoin = async () => {
+  const handleJoinClick = () => {
     if (!isAuthenticated) {
       toast.error('Please login to join tournaments');
       navigate('/login');
@@ -73,12 +75,19 @@ const TournamentDetailPage: React.FC = () => {
       return;
     }
 
+    // Open payment dialog
+    setShowPaymentDialog(true);
+  };
+
+  const handlePaymentSuccess = async () => {
+    setShowPaymentDialog(false);
     setIsJoining(true);
+    
     try {
       const result = await joinTournament(tournament.id, user!.id);
       toast.success(
         <div className="space-y-1">
-          <div className="font-semibold">🎉 Payment Successful!</div>
+          <div className="font-semibold">🎉 Successfully Joined!</div>
           <div className="text-sm">Entry fee: ₹{tournament.entryFee} paid</div>
           <div className="text-sm">Your slot number: #{result.slotNumber}</div>
           <div className="text-xs text-muted-foreground">Transaction ID: {result.paymentId}</div>
@@ -158,7 +167,7 @@ const TournamentDetailPage: React.FC = () => {
                 {tournament.status === 'UPCOMING' && !isRegistered && (
                   <Button 
                     size="xl" 
-                    onClick={handleJoin}
+                    onClick={handleJoinClick}
                     disabled={isJoining || spotsLeft <= 0}
                     className="w-full md:w-auto"
                   >
@@ -389,6 +398,16 @@ const TournamentDetailPage: React.FC = () => {
       </main>
 
       <Footer />
+
+      {/* Payment Dialog */}
+      {tournament && (
+        <PaymentDialog
+          open={showPaymentDialog}
+          onOpenChange={setShowPaymentDialog}
+          tournament={tournament}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 };
