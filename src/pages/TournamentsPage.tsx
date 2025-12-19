@@ -1,20 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import TournamentCard from '@/components/TournamentCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
-import { Tournament, TournamentStatus, GameType } from '@/types';
-import { Search, Filter, Gamepad2 } from 'lucide-react';
+import { TournamentStatus, GameType } from '@/types';
+import { Search, Gamepad2 } from 'lucide-react';
 
 const TournamentsPage: React.FC = () => {
   const { tournaments, userRegistrations, fetchTournaments, isLoading } = useData();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [gameFilter, setGameFilter] = useState<GameType | 'ALL'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<TournamentStatus | 'ALL'>('ALL');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const searchQuery = searchParams.get('search') || '';
+  const gameFilter = (searchParams.get('game') as GameType | 'ALL') || 'ALL';
+  const statusFilter = (searchParams.get('status') as TournamentStatus | 'ALL') || 'ALL';
+
+  const updateFilter = (key: string, value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (value === 'ALL' || value === '') {
+      newParams.delete(key);
+    } else {
+      newParams.set(key, value);
+    }
+    setSearchParams(newParams);
+  };
 
   useEffect(() => {
     fetchTournaments();
@@ -70,7 +82,7 @@ const TournamentsPage: React.FC = () => {
                 <Input
                   placeholder="Search tournaments..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => updateFilter('search', e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -82,7 +94,7 @@ const TournamentsPage: React.FC = () => {
                     key={option.value}
                     variant={gameFilter === option.value ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setGameFilter(option.value)}
+                    onClick={() => updateFilter('game', option.value)}
                   >
                     {option.label}
                   </Button>
@@ -97,7 +109,7 @@ const TournamentsPage: React.FC = () => {
                   key={option.value}
                   variant={statusFilter === option.value ? 'default' : 'outline'}
                   className="cursor-pointer hover:bg-primary/20 transition-colors whitespace-nowrap"
-                  onClick={() => setStatusFilter(option.value)}
+                  onClick={() => updateFilter('status', option.value)}
                 >
                   {option.label}
                 </Badge>

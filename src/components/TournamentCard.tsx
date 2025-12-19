@@ -112,7 +112,7 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isRegistere
           </div>
 
           {/* Action Button */}
-          <Link to={`/tournament/${tournament.id}`}>
+          <Link to={`/tournaments/${tournament.id}`}>
             <Button 
               className="w-full group/btn" 
               variant={tournament.status === 'UPCOMING' ? 'default' : 'outline'}
