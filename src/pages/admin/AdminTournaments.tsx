@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tournament, GameType, TournamentStatus, PrizeTier, calculateTotalPrizePool } from '@/types';
+import { Tournament, GameType, TournamentStatus, PrizeTier, calculateTotalPrizePool, getPrizeForRank } from '@/types';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
@@ -21,6 +21,8 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  Medal,
+  Target,
 } from 'lucide-react';
 import {
   Dialog,
@@ -43,23 +45,48 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface PlayerResult {
+  oderId: string;
+  displayName: string;
+  position: number;
+  kills: number;
+  prizeAmount: number;
+}
 
 const AdminTournaments: React.FC = () => {
   const { user } = useAuth();
   const { notifyRoomRelease } = useNotifications();
   const { 
     tournaments, 
+    allUsers,
     fetchTournaments, 
+    fetchAllUsers,
     createTournament, 
     updateTournamentRoom, 
     updateTournamentStatus,
+    distributePrizes,
     isLoading 
   } = useData();
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [roomDialogOpen, setRoomDialogOpen] = useState(false);
+  const [resultsDialogOpen, setResultsDialogOpen] = useState(false);
   const [selectedTournament, setSelectedTournament] = useState<Tournament | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Results entry state
+  const [playerResults, setPlayerResults] = useState<PlayerResult[]>([]);
+  const [isDistributing, setIsDistributing] = useState(false);
 
   // Form states
   const [newTournament, setNewTournament] = useState({
@@ -81,7 +108,8 @@ const AdminTournaments: React.FC = () => {
 
   useEffect(() => {
     fetchTournaments();
-  }, [fetchTournaments]);
+    fetchAllUsers();
+  }, [fetchTournaments, fetchAllUsers]);
 
   const handleCreateTournament = async () => {
     if (!newTournament.matchDateTime) {
@@ -164,6 +192,56 @@ const AdminTournaments: React.FC = () => {
     }
   };
 
+  const handleOpenResultsDialog = (tournament: Tournament) => {
+    setSelectedTournament(tournament);
+    // Initialize with empty player results based on registered count
+    const initialResults: PlayerResult[] = [];
+    // Add some sample players from allUsers for demo
+    const sampleUsers = allUsers.slice(0, Math.min(tournament.registeredCount || 10, 20));
+    sampleUsers.forEach((user, index) => {
+      const position = index + 1;
+      initialResults.push({
+        oderId: user.id,
+        displayName: user.displayName || user.email,
+        position: position,
+        kills: 0,
+        prizeAmount: getPrizeForRank(position, tournament.prizeTiers),
+      });
+    });
+    setPlayerResults(initialResults);
+    setResultsDialogOpen(true);
+  };
+
+  const updatePlayerResult = (oderId: string, field: 'position' | 'kills', value: number) => {
+    setPlayerResults(prev => prev.map(p => {
+      if (p.oderId === oderId) {
+        const updated = { ...p, [field]: value };
+        if (field === 'position' && selectedTournament) {
+          updated.prizeAmount = getPrizeForRank(value, selectedTournament.prizeTiers);
+        }
+        return updated;
+      }
+      return p;
+    }));
+  };
+
+  const handleDistributePrizes = async () => {
+    if (!selectedTournament) return;
+
+    setIsDistributing(true);
+    try {
+      await distributePrizes(selectedTournament.id, playerResults);
+      toast.success('Prizes distributed successfully! Player wallets have been updated.');
+      setResultsDialogOpen(false);
+      setPlayerResults([]);
+      setSelectedTournament(null);
+    } catch (error) {
+      toast.error('Failed to distribute prizes');
+    } finally {
+      setIsDistributing(false);
+    }
+  };
+
   const getStatusColor = (status: TournamentStatus) => {
     switch (status) {
       case 'UPCOMING': return 'upcoming';
@@ -172,6 +250,8 @@ const AdminTournaments: React.FC = () => {
       case 'CANCELLED': return 'cancelled';
     }
   };
+
+  const totalPrizesCalculated = playerResults.reduce((sum, p) => sum + p.prizeAmount, 0);
 
   return (
     <div className="space-y-6">
@@ -401,6 +481,22 @@ const AdminTournaments: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Prize Tiers Preview */}
+                  <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Medal className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-primary">Prize Distribution</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                      {tournament.prizeTiers.map((tier, index) => (
+                        <div key={index} className="p-2 rounded bg-secondary/30 text-center">
+                          <div className="text-xs text-muted-foreground">Rank {tier.rankStart}-{tier.rankEnd}</div>
+                          <div className="font-bold text-primary">₹{tier.prizeAmount}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Room Details */}
                   {tournament.roomReleased && (
                     <div className="p-4 rounded-lg bg-success/10 border border-success/20">
@@ -467,10 +563,14 @@ const AdminTournaments: React.FC = () => {
                       View Players
                     </Button>
 
-                    {tournament.status === 'COMPLETED' && (
-                      <Button variant="outline">
+                    {(tournament.status === 'COMPLETED' || tournament.status === 'LIVE') && (
+                      <Button 
+                        variant="outline"
+                        onClick={() => handleOpenResultsDialog(tournament)}
+                        className="border-primary/50 text-primary hover:bg-primary/10"
+                      >
                         <Trophy className="w-4 h-4" />
-                        Add Results
+                        Enter Results & Distribute Prizes
                       </Button>
                     )}
                   </div>
@@ -516,6 +616,134 @@ const AdminTournaments: React.FC = () => {
             </Button>
             <Button onClick={handleReleaseRoom}>
               Release to Players
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Results Entry Dialog */}
+      <Dialog open={resultsDialogOpen} onOpenChange={setResultsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-primary" />
+              Enter Match Results
+            </DialogTitle>
+            <DialogDescription>
+              Enter player positions and kills. Prizes will be auto-calculated based on prize tiers.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedTournament && (
+            <>
+              {/* Prize Tiers Reference */}
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm">
+                <div className="font-medium text-primary mb-2">Prize Tiers Reference</div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTournament.prizeTiers.map((tier, index) => (
+                    <span key={index} className="px-2 py-1 rounded bg-secondary/50">
+                      Rank {tier.rankStart}-{tier.rankEnd}: <span className="font-bold text-primary">₹{tier.prizeAmount}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Players Table */}
+              <ScrollArea className="h-[400px] rounded-lg border border-border/50">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-secondary/30">
+                      <TableHead className="w-[200px]">Player</TableHead>
+                      <TableHead className="w-[100px]">Position</TableHead>
+                      <TableHead className="w-[100px]">Kills</TableHead>
+                      <TableHead className="w-[120px] text-right">Prize (Auto)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {playerResults.map((player) => (
+                      <TableRow key={player.oderId}>
+                        <TableCell className="font-medium">{player.displayName}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={player.position}
+                            onChange={(e) => updatePlayerResult(player.oderId, 'position', parseInt(e.target.value) || 0)}
+                            min={1}
+                            className="h-8 w-20"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={player.kills}
+                            onChange={(e) => updatePlayerResult(player.oderId, 'kills', parseInt(e.target.value) || 0)}
+                            min={0}
+                            className="h-8 w-20"
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {player.prizeAmount > 0 ? (
+                            <span className="font-bold text-success">₹{player.prizeAmount}</span>
+                          ) : (
+                            <span className="text-muted-foreground">₹0</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+
+              {/* Add Player */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const nextPosition = playerResults.length + 1;
+                  setPlayerResults(prev => [...prev, {
+                    oderId: `manual-${Date.now()}`,
+                    displayName: `Player ${nextPosition}`,
+                    position: nextPosition,
+                    kills: 0,
+                    prizeAmount: getPrizeForRank(nextPosition, selectedTournament.prizeTiers),
+                  }]);
+                }}
+              >
+                <Plus className="w-4 h-4" /> Add Player
+              </Button>
+
+              {/* Summary */}
+              <div className="p-4 rounded-lg bg-success/10 border border-success/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Total Prizes to Distribute</div>
+                    <div className="text-2xl font-display font-bold text-success">₹{totalPrizesCalculated}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-muted-foreground">Players with Prizes</div>
+                    <div className="text-xl font-bold">{playerResults.filter(p => p.prizeAmount > 0).length}</div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResultsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleDistributePrizes} disabled={isDistributing}>
+              {isDistributing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Distributing...
+                </>
+              ) : (
+                <>
+                  <Trophy className="w-4 h-4" />
+                  Distribute Prizes
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
