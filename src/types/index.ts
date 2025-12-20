@@ -111,6 +111,18 @@ export interface UserStats {
   totalEarnings: number;
 }
 
+// Match Result for history display
+export interface MatchResult {
+  id: string;
+  tournamentId: string;
+  tournament?: Tournament;
+  userId: string;
+  position: number;
+  kills: number;
+  prizeAmount: number;
+  createdAt: Date;
+}
+
 // Calculate total prize pool from tiers
 export const calculateTotalPrizePool = (prizeTiers: PrizeTier[]): number => {
   return prizeTiers.reduce((total, tier) => {

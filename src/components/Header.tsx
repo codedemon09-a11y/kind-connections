@@ -12,7 +12,8 @@ import {
   LogOut, 
   Shield,
   Home,
-  Trophy
+  Trophy,
+  History
 } from 'lucide-react';
 
 const Header: React.FC = () => {
@@ -24,7 +25,10 @@ const Header: React.FC = () => {
     { label: 'Home', href: '/', icon: Home },
     { label: 'Tournaments', href: '/tournaments', icon: Gamepad2 },
     { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
-    ...(isAuthenticated ? [{ label: 'Wallet', href: '/wallet', icon: Wallet }] : []),
+    ...(isAuthenticated ? [
+      { label: 'Wallet', href: '/wallet', icon: Wallet },
+      { label: 'History', href: '/match-history', icon: History },
+    ] : []),
     ...(isAdmin ? [{ label: 'Admin', href: '/admin', icon: Shield }] : []),
   ];
 

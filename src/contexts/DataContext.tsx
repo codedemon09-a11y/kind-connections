@@ -4,7 +4,8 @@ import { db } from '@/lib/firebase';
 import { 
   Tournament, 
   TournamentRegistration, 
-  WithdrawalRequest, 
+  WithdrawalRequest,
+  MatchResult,
   Transaction,
   TournamentStatus,
   User,
@@ -17,18 +18,20 @@ interface DataContextType {
   withdrawalRequests: WithdrawalRequest[];
   transactions: Transaction[];
   allUsers: User[];
+  matchResults: MatchResult[];
   isLoading: boolean;
   fetchTournaments: () => Promise<void>;
   fetchUserRegistrations: (userId: string) => Promise<void>;
   fetchWithdrawalRequests: () => Promise<void>;
   fetchTransactions: (userId: string) => Promise<void>;
   fetchAllUsers: () => Promise<void>;
+  fetchMatchHistory: (userId: string) => Promise<void>;
   joinTournament: (tournamentId: string, userId: string) => Promise<{ slotNumber: number; paymentId: string }>;
   createTournament: (tournament: Omit<Tournament, 'id' | 'createdAt' | 'registeredCount'>) => Promise<void>;
   updateTournamentRoom: (tournamentId: string, roomId: string, roomPassword: string) => Promise<void>;
   updateTournamentStatus: (tournamentId: string, status: TournamentStatus) => Promise<void>;
   addTournamentResult: (tournamentId: string, userId: string, position: number, prizeAmount: number, kills: number) => Promise<void>;
-  distributePrizes: (tournamentId: string, results: { userId: string; position: number; kills: number }[]) => Promise<void>;
+  distributePrizes: (tournamentId: string, results: { oderId: string; displayName: string; position: number; kills: number }[]) => Promise<void>;
   requestWithdrawal: (userId: string, amount: number, upiId: string) => Promise<void>;
   processWithdrawal: (requestId: string, approved: boolean, reason?: string) => Promise<void>;
   disqualifyPlayer: (registrationId: string, reason: string) => Promise<void>;
@@ -120,6 +123,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchTournaments = useCallback(async () => {
@@ -149,6 +153,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setTransactions(mockTransactions.filter(t => t.userId === userId));
     setIsLoading(false);
   }, []);
+
+  const fetchMatchHistory = useCallback(async (userId: string) => {
+    setIsLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    // Get match results for this user with tournament data
+    const userResults = matchResults
+      .filter(r => r.userId === userId)
+      .map(r => ({
+        ...r,
+        tournament: tournaments.find(t => t.id === r.tournamentId)
+      }));
+    setMatchResults(prev => prev.filter(r => r.userId !== userId).concat(userResults));
+    setIsLoading(false);
+  }, [matchResults, tournaments]);
 
   const fetchAllUsers = useCallback(async () => {
     setIsLoading(true);
@@ -268,7 +286,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const distributePrizes = useCallback(async (
     tournamentId: string, 
-    results: { userId: string; position: number; kills: number }[]
+    results: { oderId: string; displayName: string; position: number; kills: number }[]
   ) => {
     const tournament = tournaments.find(t => t.id === tournamentId);
     if (!tournament) return;
@@ -283,10 +301,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
 
+      // Create match result record
+      const matchResult: MatchResult = {
+        id: `result-${Date.now()}-${result.oderId}`,
+        tournamentId,
+        userId: result.oderId,
+        position: result.position,
+        kills: result.kills,
+        prizeAmount,
+        createdAt: new Date(),
+      };
+      setMatchResults(prev => [matchResult, ...prev]);
+
       if (prizeAmount > 0) {
         const newTransaction: Transaction = {
-          id: `txn-${Date.now()}-${result.userId}`,
-          userId: result.userId,
+          id: `txn-${Date.now()}-${result.oderId}`,
+          userId: result.oderId,
           type: 'PRIZE',
           amount: prizeAmount,
           description: `Position #${result.position} prize - ${tournament.game} Tournament`,
@@ -298,12 +328,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Add prize to user's winning credits
         setAllUsers(prev => prev.map(u => 
-          u.id === result.userId 
+          u.id === result.oderId 
             ? { ...u, winningCredits: u.winningCredits + prizeAmount } 
             : u
         ));
       }
     }
+
+    // Mark tournament as completed
+    setTournaments(prev => prev.map(t => 
+      t.id === tournamentId ? { ...t, status: 'COMPLETED' as const } : t
+    ));
   }, [tournaments]);
 
   const updateUserBalance = useCallback((userId: string, winningCredits: number) => {
@@ -404,12 +439,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         withdrawalRequests,
         transactions,
         allUsers,
+        matchResults,
         isLoading,
         fetchTournaments,
         fetchUserRegistrations,
         fetchWithdrawalRequests,
         fetchTransactions,
         fetchAllUsers,
+        fetchMatchHistory,
         joinTournament,
         createTournament,
         updateTournamentRoom,
