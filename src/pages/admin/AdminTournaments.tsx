@@ -23,6 +23,7 @@ import {
   Loader2,
   Medal,
   Target,
+  Trash2,
 } from 'lucide-react';
 import {
   Dialog,
@@ -71,7 +72,8 @@ const AdminTournaments: React.FC = () => {
     allUsers,
     fetchTournaments, 
     fetchAllUsers,
-    createTournament, 
+    createTournament,
+    deleteTournament,
     updateTournamentRoom, 
     updateTournamentStatus,
     distributePrizes,
@@ -573,6 +575,20 @@ const AdminTournaments: React.FC = () => {
                         Enter Results & Distribute Prizes
                       </Button>
                     )}
+
+                    <Button 
+                      variant="destructive"
+                      size="sm"
+                      onClick={async () => {
+                        if (confirm('Are you sure you want to delete this tournament? This action cannot be undone.')) {
+                          await deleteTournament(tournament.id);
+                          toast.success('Tournament deleted successfully');
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </Button>
                   </div>
                 </CardContent>
               </CollapsibleContent>

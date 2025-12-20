@@ -1,6 +1,54 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+
+// LocalStorage keys
+const STORAGE_KEYS = {
+  TOURNAMENTS: 'battlearena_tournaments',
+  REGISTRATIONS: 'battlearena_registrations',
+  WITHDRAWALS: 'battlearena_withdrawals',
+  TRANSACTIONS: 'battlearena_transactions',
+  MATCH_RESULTS: 'battlearena_match_results',
+};
+
+// Helper to parse dates from localStorage
+const parseDates = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(obj)) {
+    return new Date(obj);
+  }
+  if (Array.isArray(obj)) return obj.map(parseDates);
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const key in obj) {
+      result[key] = parseDates(obj[key]);
+    }
+    return result;
+  }
+  return obj;
+};
+
+// Load from localStorage
+const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      return parseDates(JSON.parse(stored));
+    }
+  } catch (error) {
+    console.error(`Error loading ${key} from localStorage:`, error);
+  }
+  return defaultValue;
+};
+
+// Save to localStorage
+const saveToStorage = <T,>(key: string, data: T): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error(`Error saving ${key} to localStorage:`, error);
+  }
+};
 import { 
   Tournament, 
   TournamentRegistration, 
@@ -28,6 +76,7 @@ interface DataContextType {
   fetchMatchHistory: (userId: string) => Promise<void>;
   joinTournament: (tournamentId: string, userId: string) => Promise<{ slotNumber: number; paymentId: string }>;
   createTournament: (tournament: Omit<Tournament, 'id' | 'createdAt' | 'registeredCount'>) => Promise<void>;
+  deleteTournament: (tournamentId: string) => Promise<void>;
   updateTournamentRoom: (tournamentId: string, roomId: string, roomPassword: string) => Promise<void>;
   updateTournamentStatus: (tournamentId: string, status: TournamentStatus) => Promise<void>;
   addTournamentResult: (tournamentId: string, userId: string, position: number, prizeAmount: number, kills: number) => Promise<void>;
@@ -118,18 +167,50 @@ const mockWithdrawals: WithdrawalRequest[] = [];
 const mockTransactions: Transaction[] = [];
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [tournaments, setTournaments] = useState<Tournament[]>(mockTournaments);
-  const [userRegistrations, setUserRegistrations] = useState<TournamentRegistration[]>([]);
-  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // Load initial state from localStorage or use defaults
+  const [tournaments, setTournaments] = useState<Tournament[]>(() => 
+    loadFromStorage(STORAGE_KEYS.TOURNAMENTS, mockTournaments)
+  );
+  const [userRegistrations, setUserRegistrations] = useState<TournamentRegistration[]>(() =>
+    loadFromStorage(STORAGE_KEYS.REGISTRATIONS, [])
+  );
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>(() =>
+    loadFromStorage(STORAGE_KEYS.WITHDRAWALS, [])
+  );
+  const [transactions, setTransactions] = useState<Transaction[]>(() =>
+    loadFromStorage(STORAGE_KEYS.TRANSACTIONS, [])
+  );
   const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
+  const [matchResults, setMatchResults] = useState<MatchResult[]>(() =>
+    loadFromStorage(STORAGE_KEYS.MATCH_RESULTS, [])
+  );
   const [isLoading, setIsLoading] = useState(false);
+
+  // Persist data to localStorage whenever it changes
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.TOURNAMENTS, tournaments);
+  }, [tournaments]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.REGISTRATIONS, userRegistrations);
+  }, [userRegistrations]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.WITHDRAWALS, withdrawalRequests);
+  }, [withdrawalRequests]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.TRANSACTIONS, transactions);
+  }, [transactions]);
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.MATCH_RESULTS, matchResults);
+  }, [matchResults]);
 
   const fetchTournaments = useCallback(async () => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setTournaments(prev => prev.length === 0 ? mockTournaments : prev);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    // Tournaments are already loaded from localStorage in initial state
     setIsLoading(false);
   }, []);
 
@@ -244,6 +325,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       registeredCount: 0,
     };
     setTournaments(prev => [newTournament, ...prev]);
+  }, []);
+
+  const deleteTournament = useCallback(async (tournamentId: string) => {
+    setTournaments(prev => prev.filter(t => t.id !== tournamentId));
   }, []);
 
   const updateTournamentRoom = useCallback(async (tournamentId: string, roomId: string, roomPassword: string) => {
@@ -449,6 +534,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchMatchHistory,
         joinTournament,
         createTournament,
+        deleteTournament,
         updateTournamentRoom,
         updateTournamentStatus,
         addTournamentResult,
