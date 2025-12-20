@@ -252,10 +252,30 @@ const AdminUsers: React.FC = () => {
               </div>
             ))}
 
-            {filteredUsers.length === 0 && (
+            {filteredUsers.length === 0 && allUsers.length === 0 && (
+              <div className="text-center py-8">
+                <Users className="w-12 h-12 mx-auto mb-3 opacity-50 text-muted-foreground" />
+                <p className="text-muted-foreground font-medium mb-2">No users found</p>
+                <p className="text-sm text-muted-foreground">
+                  Firebase permissions may be blocking access. Please update your Firestore security rules:
+                </p>
+                <div className="mt-3 p-3 rounded-lg bg-secondary/50 text-left text-xs font-mono">
+                  <p>rules_version = '2';</p>
+                  <p>service cloud.firestore {'{'}</p>
+                  <p className="pl-4">match /databases/{'{database}'}/documents {'{'}</p>
+                  <p className="pl-8">match /users/{'{userId}'} {'{'}</p>
+                  <p className="pl-12 text-primary">allow read: if request.auth != null;</p>
+                  <p className="pl-8">{'}'}</p>
+                  <p className="pl-4">{'}'}</p>
+                  <p>{'}'}</p>
+                </div>
+              </div>
+            )}
+
+            {filteredUsers.length === 0 && allUsers.length > 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No users found</p>
+                <p>No users match your search</p>
               </div>
             )}
           </div>
