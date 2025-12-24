@@ -15,7 +15,12 @@ import {
   ChevronRight,
   Zap,
   Target,
-  Award
+  Award,
+  Sword,
+  Crown,
+  Flame,
+  Star,
+  Sparkles
 } from 'lucide-react';
 
 const Index: React.FC = () => {
@@ -35,184 +40,267 @@ const Index: React.FC = () => {
       <main className="flex-1">
         {/* Hero Section */}
         <section className="relative overflow-hidden hero-gradient">
-          {/* Background Pattern */}
-          <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl" />
-            <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+          {/* Animated Background Elements */}
+          <div className="absolute inset-0 cyber-lines opacity-20" />
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-20 left-[10%] w-72 h-72 bg-primary/30 rounded-full blur-[100px] animate-pulse" />
+            <div className="absolute bottom-10 right-[10%] w-96 h-96 bg-neon-pink/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-neon-cyan/10 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '2s' }} />
           </div>
           
-          <div className="container relative py-20 md:py-32">
-            <div className="max-w-3xl mx-auto text-center space-y-8">
-              <Badge variant="outline" className="px-4 py-2 text-sm border-primary/30 text-primary">
-                <Zap className="w-4 h-4 mr-2" />
-                India's Trusted Esports Platform
-              </Badge>
+          <div className="container relative py-20 md:py-32 lg:py-40">
+            <div className="max-w-4xl mx-auto text-center space-y-8 animate-slide-up">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/30 backdrop-blur-sm animate-pulse-glow">
+                <Flame className="w-4 h-4 text-neon-orange" />
+                <span className="text-sm font-medium text-primary">India's #1 Esports Platform</span>
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
               
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold tracking-tight">
-                <span className="text-foreground">Compete.</span>{' '}
-                <span className="text-gradient">Win.</span>{' '}
-                <span className="text-foreground">Dominate.</span>
+              {/* Main Title */}
+              <h1 className="text-5xl md:text-7xl lg:text-8xl font-display font-bold tracking-tight leading-none">
+                <span className="block text-foreground animate-neon-flicker">COMPETE.</span>
+                <span className="block text-gradient py-2">WIN.</span>
+                <span className="block text-foreground">DOMINATE.</span>
               </h1>
               
-              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-                Join skill-based BGMI & Free Fire tournaments. Play solo, prove your skills, and win real prizes.
+              {/* Subtitle */}
+              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                Join skill-based <span className="text-neon-orange font-semibold">BGMI</span> & <span className="text-neon-cyan font-semibold">Free Fire</span> tournaments. 
+                Play solo, prove your skills, and win <span className="text-success font-semibold">real prizes</span>.
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
                 <Link to="/tournaments">
-                  <Button size="xl" className="w-full sm:w-auto animate-pulse-glow">
-                    <Gamepad2 className="w-5 h-5" />
-                    Browse Tournaments
-                    <ChevronRight className="w-5 h-5" />
+                  <Button size="xl" className="w-full sm:w-auto gap-3 text-lg font-bold animate-pulse-glow hover:glow-primary-intense transition-all duration-500 group">
+                    <Sword className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
+                    Enter the Arena
+                    <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
                   </Button>
                 </Link>
                 {!isAuthenticated && (
                   <Link to="/login">
-                    <Button variant="outline" size="xl" className="w-full sm:w-auto">
+                    <Button variant="outline" size="xl" className="w-full sm:w-auto gap-2 text-lg border-2 border-primary/50 hover:bg-primary/10 hover:border-primary transition-all duration-300">
+                      <Crown className="w-5 h-5" />
                       Create Account
                     </Button>
                   </Link>
                 )}
               </div>
+
+              {/* Quick Stats */}
+              <div className="flex flex-wrap justify-center gap-8 pt-8">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  <span className="text-sm">500+ Live Matches</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0.5s' }} />
+                  <span className="text-sm">10K+ Players</span>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-2 h-2 rounded-full bg-warning animate-pulse" style={{ animationDelay: '1s' }} />
+                  <span className="text-sm">₹5L+ Distributed</span>
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Bottom gradient fade */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
         </section>
 
         {/* Features Section */}
-        <section className="py-16 md:py-24 border-t border-border/50">
-          <div className="container">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
-                Why Choose <span className="text-gradient">BattleArena</span>?
+        <section className="py-20 md:py-28 relative overflow-hidden">
+          <div className="container relative">
+            <div className="text-center mb-16 animate-slide-up">
+              <Badge variant="outline" className="mb-4 px-4 py-2">
+                <Star className="w-4 h-4 mr-2 text-warning" />
+                Why Choose Us
+              </Badge>
+              <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">
+                Built for <span className="text-gradient">Champions</span>
               </h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
-                Built by gamers, for gamers. Experience fair play and transparent prize distribution.
+                Experience fair play, instant payouts, and the most competitive esports environment.
               </p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 group">
-                <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center mb-4 group-hover:glow-primary transition-all duration-300">
-                  <Trophy className="w-6 h-6 text-primary" />
+              {[
+                {
+                  icon: Trophy,
+                  title: 'Transparent Prizes',
+                  description: '₹16 per player goes directly to prize pool. No hidden fees, guaranteed payouts.',
+                  color: 'primary',
+                  delay: 0
+                },
+                {
+                  icon: Shield,
+                  title: 'Anti-Cheat System',
+                  description: 'Strict rules against emulators, hacks, and teaming. Fair play guaranteed.',
+                  color: 'neon-cyan',
+                  delay: 100
+                },
+                {
+                  icon: Zap,
+                  title: 'Instant Room IDs',
+                  description: 'Get room credentials instantly on the platform. No WhatsApp groups needed.',
+                  color: 'neon-pink',
+                  delay: 200
+                }
+              ].map((feature, index) => (
+                <div 
+                  key={index}
+                  className="group relative p-8 rounded-2xl gaming-card border border-border/50 hover:border-primary/50 transition-all duration-500 animate-slide-up border-glow"
+                  style={{ animationDelay: `${feature.delay}ms` }}
+                >
+                  <div className={`w-14 h-14 rounded-xl bg-${feature.color}/20 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:glow-primary transition-all duration-500`}>
+                    <feature.icon className={`w-7 h-7 text-${feature.color}`} />
+                  </div>
+                  <h3 className="font-display font-bold text-xl mb-3 group-hover:text-primary transition-colors duration-300">
+                    {feature.title}
+                  </h3>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {feature.description}
+                  </p>
+                  <div className="absolute top-4 right-4 w-20 h-20 bg-primary/5 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </div>
-                <h3 className="font-display font-bold text-lg mb-2">Transparent Prize Pools</h3>
-                <p className="text-sm text-muted-foreground">
-                  ₹16 per player goes directly to prize pool. No hidden charges, what you see is what winners get.
-                </p>
-              </div>
-              
-              <div className="p-6 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 group">
-                <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center mb-4 group-hover:glow-primary transition-all duration-300">
-                  <Shield className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="font-display font-bold text-lg mb-2">Anti-Cheat Protection</h3>
-                <p className="text-sm text-muted-foreground">
-                  Strict rules against emulators, hacks, and teaming. Fair play is our priority.
-                </p>
-              </div>
-              
-              <div className="p-6 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 group">
-                <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center mb-4 group-hover:glow-primary transition-all duration-300">
-                  <Zap className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="font-display font-bold text-lg mb-2">Instant Room Details</h3>
-                <p className="text-sm text-muted-foreground">
-                  Get room ID and password directly on the platform. No WhatsApp groups, no spam.
-                </p>
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
         {/* Upcoming Tournaments */}
-        <section className="py-16 md:py-24 bg-secondary/20 border-t border-border/50">
-          <div className="container">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-display font-bold mb-2">
-                  Upcoming Tournaments
+        <section className="py-20 md:py-28 relative overflow-hidden bg-gradient-to-b from-secondary/30 to-background">
+          <div className="absolute inset-0 cyber-lines opacity-10" />
+          <div className="container relative">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-12">
+              <div className="animate-slide-up">
+                <Badge variant="upcoming" className="mb-3">
+                  <Flame className="w-3 h-3 mr-1" />
+                  Hot Matches
+                </Badge>
+                <h2 className="text-3xl md:text-4xl font-display font-bold mb-2">
+                  Upcoming <span className="text-gradient">Battles</span>
                 </h2>
                 <p className="text-muted-foreground">Join now before slots fill up</p>
               </div>
-              <Link to="/tournaments">
-                <Button variant="outline" className="hidden sm:flex">
+              <Link to="/tournaments" className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+                <Button variant="outline" className="gap-2 group border-primary/30 hover:bg-primary/10 hover:border-primary/50">
                   View All
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
                 </Button>
               </Link>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {upcomingTournaments.map((tournament) => (
-                <TournamentCard 
-                  key={tournament.id} 
-                  tournament={tournament}
-                  isRegistered={userRegistrations.some(r => r.tournamentId === tournament.id)}
-                />
-              ))}
-            </div>
-            
-            <Link to="/tournaments" className="sm:hidden mt-6 block">
-              <Button variant="outline" className="w-full">
-                View All Tournaments
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </Link>
+            {upcomingTournaments.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {upcomingTournaments.map((tournament, index) => (
+                  <div key={tournament.id} className="animate-slide-up" style={{ animationDelay: `${index * 100}ms` }}>
+                    <TournamentCard 
+                      tournament={tournament}
+                      isRegistered={userRegistrations.some(r => r.tournamentId === tournament.id)}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16 gaming-card rounded-2xl border border-border/50">
+                <Gamepad2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">No upcoming tournaments. Check back soon!</p>
+              </div>
+            )}
           </div>
         </section>
 
         {/* Supported Games */}
-        <section className="py-16 md:py-24 border-t border-border/50">
-          <div className="container">
-            <div className="text-center mb-12">
-              <h2 className="text-2xl md:text-3xl font-display font-bold mb-4">
-                Supported Games
+        <section className="py-20 md:py-28 relative overflow-hidden">
+          <div className="container relative">
+            <div className="text-center mb-16 animate-slide-up">
+              <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
+                Choose Your <span className="text-gradient">Battlefield</span>
               </h2>
               <p className="text-muted-foreground">Solo tournaments only • Mobile devices required</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-              <div className="p-8 rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 text-center group hover:border-amber-500/40 transition-all duration-300">
-                <div className="w-16 h-16 rounded-xl bg-amber-500/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <Target className="w-8 h-8 text-amber-400" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+              {/* BGMI Card */}
+              <div className="group relative p-10 rounded-2xl bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/30 text-center hover:border-amber-500/60 transition-all duration-500 animate-slide-up overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-lg shadow-amber-500/20">
+                    <Target className="w-10 h-10 text-amber-400" />
+                  </div>
+                  <h3 className="font-display font-bold text-2xl text-amber-400 mb-2">BGMI</h3>
+                  <p className="text-muted-foreground mb-6">Battlegrounds Mobile India</p>
+                  <Badge variant="bgmi" className="text-base px-4 py-1.5">Solo Mode</Badge>
                 </div>
-                <h3 className="font-display font-bold text-xl text-amber-400 mb-2">BGMI</h3>
-                <p className="text-sm text-muted-foreground">Battlegrounds Mobile India</p>
-                <Badge variant="bgmi" className="mt-4">Solo Mode</Badge>
               </div>
               
-              <div className="p-8 rounded-xl bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20 text-center group hover:border-orange-500/40 transition-all duration-300">
-                <div className="w-16 h-16 rounded-xl bg-orange-500/20 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-                  <Award className="w-8 h-8 text-orange-400" />
+              {/* Free Fire Card */}
+              <div className="group relative p-10 rounded-2xl bg-gradient-to-br from-orange-500/10 via-red-500/5 to-transparent border border-orange-500/30 text-center hover:border-orange-500/60 transition-all duration-500 animate-slide-up overflow-hidden" style={{ animationDelay: '100ms' }}>
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-orange-500/30 to-red-500/20 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500 shadow-lg shadow-orange-500/20">
+                    <Award className="w-10 h-10 text-orange-400" />
+                  </div>
+                  <h3 className="font-display font-bold text-2xl text-orange-400 mb-2">Free Fire</h3>
+                  <p className="text-muted-foreground mb-6">Garena Free Fire</p>
+                  <Badge variant="freefire" className="text-base px-4 py-1.5">Solo Mode</Badge>
                 </div>
-                <h3 className="font-display font-bold text-xl text-orange-400 mb-2">Free Fire</h3>
-                <p className="text-sm text-muted-foreground">Garena Free Fire</p>
-                <Badge variant="freefire" className="mt-4">Solo Mode</Badge>
               </div>
             </div>
           </div>
         </section>
 
         {/* Stats Section */}
-        <section className="py-16 md:py-24 bg-primary/5 border-t border-border/50">
-          <div className="container">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-              <div>
-                <div className="text-3xl md:text-4xl font-display font-bold text-primary mb-2">500+</div>
-                <div className="text-sm text-muted-foreground">Tournaments Hosted</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-display font-bold text-primary mb-2">10K+</div>
-                <div className="text-sm text-muted-foreground">Active Players</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-display font-bold text-primary mb-2">₹5L+</div>
-                <div className="text-sm text-muted-foreground">Prize Distributed</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-display font-bold text-primary mb-2">99%</div>
-                <div className="text-sm text-muted-foreground">Fair Play Rate</div>
-              </div>
+        <section className="py-20 md:py-28 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-neon-pink/5 to-neon-cyan/5" />
+          <div className="container relative">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+              {[
+                { value: '500+', label: 'Tournaments', icon: Trophy, color: 'primary' },
+                { value: '10K+', label: 'Players', icon: Users, color: 'neon-cyan' },
+                { value: '₹5L+', label: 'Distributed', icon: Zap, color: 'success' },
+                { value: '99%', label: 'Fair Play', icon: Shield, color: 'warning' }
+              ].map((stat, index) => (
+                <div 
+                  key={index}
+                  className="text-center p-6 rounded-2xl gaming-card border border-border/50 hover:border-primary/30 transition-all duration-300 animate-slide-up group"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <stat.icon className={`w-8 h-8 text-${stat.color} mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`} />
+                  <div className={`text-3xl md:text-4xl font-display font-bold text-${stat.color} mb-2`}>
+                    {stat.value}
+                  </div>
+                  <div className="text-sm text-muted-foreground">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section className="py-20 md:py-28 relative overflow-hidden">
+          <div className="absolute inset-0 hero-gradient" />
+          <div className="absolute inset-0 cyber-lines opacity-10" />
+          <div className="container relative">
+            <div className="max-w-3xl mx-auto text-center space-y-8 animate-slide-up">
+              <h2 className="text-3xl md:text-5xl font-display font-bold">
+                Ready to <span className="text-gradient">Dominate</span>?
+              </h2>
+              <p className="text-xl text-muted-foreground">
+                Join thousands of players competing for glory and real prizes.
+              </p>
+              <Link to={isAuthenticated ? "/tournaments" : "/login"}>
+                <Button size="xl" className="gap-3 text-lg animate-pulse-glow hover:glow-primary-intense">
+                  <Flame className="w-5 h-5" />
+                  {isAuthenticated ? "Find Matches" : "Start Playing Now"}
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+              </Link>
             </div>
           </div>
         </section>

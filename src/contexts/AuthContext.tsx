@@ -77,6 +77,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
+      // User profile will be fetched by onAuthStateChanged
     } catch (error) {
       setIsLoading(false);
       throw error;
@@ -89,7 +90,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const credential = await createUserWithEmailAndPassword(auth, email, password);
       
       // Create user profile in Firestore
-      await setDoc(doc(db, 'users', credential.user.uid), {
+      const userData = {
         email,
         displayName,
         phone: '',
@@ -99,7 +100,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAdmin: false,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+      };
+      
+      await setDoc(doc(db, 'users', credential.user.uid), userData);
+      
+      // Immediately set the user state after signup (don't wait for onAuthStateChanged)
+      setUser({
+        id: credential.user.uid,
+        email,
+        displayName,
+        phone: '',
+        walletBalance: 0,
+        winningCredits: 0,
+        isBanned: false,
+        isAdmin: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
+      setIsLoading(false);
     } catch (error) {
       setIsLoading(false);
       throw error;
