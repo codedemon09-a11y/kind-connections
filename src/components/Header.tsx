@@ -92,7 +92,7 @@ const Header: React.FC = () => {
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-neon-pink flex items-center justify-center">
                     <User className="w-3 h-3 text-primary-foreground" />
                   </div>
-                  <span className="max-w-[100px] truncate">{user?.displayName}</span>
+                  <span className="max-w-[100px] truncate">{user?.displayName || user?.email?.split('@')[0] || 'Player'}</span>
                 </Button>
               </Link>
               <Button 

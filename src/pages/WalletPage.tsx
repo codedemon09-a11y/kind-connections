@@ -36,7 +36,7 @@ import {
 
 const WalletPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { transactions, withdrawalRequests, fetchTransactions, requestWithdrawal, isLoading } = useData();
   
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -45,6 +45,7 @@ const WalletPage: React.FC = () => {
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
 
   useEffect(() => {
+    if (isAuthLoading) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
@@ -52,7 +53,7 @@ const WalletPage: React.FC = () => {
     if (user) {
       fetchTransactions(user.id);
     }
-  }, [isAuthenticated, user, fetchTransactions, navigate]);
+  }, [isAuthenticated, isAuthLoading, user, fetchTransactions, navigate]);
 
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount);
@@ -115,7 +116,17 @@ const WalletPage: React.FC = () => {
   };
 
   if (!user) {
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-16">
+          <Card>
+            <CardContent className="p-6 text-muted-foreground">Loading wallet…</CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   return (

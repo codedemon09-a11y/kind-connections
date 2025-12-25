@@ -15,16 +15,17 @@ import {
 } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAdmin) {
       navigate('/login');
     }
-  }, [isAdmin, navigate]);
+  }, [isAdmin, isLoading, navigate]);
 
   const navItems = [
     { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -39,6 +40,10 @@ const AdminLayout: React.FC = () => {
     }
     return location.pathname.startsWith(path);
   };
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!isAdmin) {
     return null;

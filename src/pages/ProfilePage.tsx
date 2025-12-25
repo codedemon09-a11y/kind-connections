@@ -20,10 +20,11 @@ import {
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { userRegistrations, transactions, fetchUserRegistrations, fetchTransactions } = useData();
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
@@ -32,7 +33,21 @@ const ProfilePage: React.FC = () => {
       fetchUserRegistrations(user.id);
       fetchTransactions(user.id);
     }
-  }, [isAuthenticated, user, fetchUserRegistrations, fetchTransactions, navigate]);
+  }, [isAuthenticated, isLoading, user, fetchUserRegistrations, fetchTransactions, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-16">
+          <Card>
+            <CardContent className="p-6 text-muted-foreground">Loading profile…</CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!user) {
     return null;

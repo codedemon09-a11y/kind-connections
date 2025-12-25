@@ -21,10 +21,11 @@ import {
 
 const MatchHistoryPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { matchResults, tournaments, userRegistrations, fetchMatchHistory, fetchUserRegistrations } = useData();
 
   useEffect(() => {
+    if (isLoading) return;
     if (!isAuthenticated) {
       navigate('/login');
       return;
@@ -33,7 +34,21 @@ const MatchHistoryPage: React.FC = () => {
       fetchMatchHistory(user.id);
       fetchUserRegistrations(user.id);
     }
-  }, [isAuthenticated, user, fetchMatchHistory, fetchUserRegistrations, navigate]);
+  }, [isAuthenticated, isLoading, user, fetchMatchHistory, fetchUserRegistrations, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Header />
+        <main className="flex-1 container py-16">
+          <Card>
+            <CardContent className="p-6 text-muted-foreground">Loading match history…</CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!user) {
     return null;
