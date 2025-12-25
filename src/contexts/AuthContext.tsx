@@ -29,15 +29,74 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const buildFallbackUser = useCallback((fbUser: FirebaseUser): User => {
+    const email = fbUser.email ?? '';
+    const displayName = fbUser.displayName ?? (email ? email.split('@')[0] : 'Player');
+
+    return {
+      id: fbUser.uid,
+      email,
+      phone: '',
+      displayName,
+      walletBalance: 0,
+      winningCredits: 0,
+      isBanned: false,
+      isAdmin: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }, []);
+
+  const fetchUserProfile = useCallback(
+    async (uid: string, fbUser?: FirebaseUser | null) => {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', uid));
+
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setUser({
+            id: uid,
+            email: data.email || fbUser?.email || '',
+            phone: data.phone || '',
+            displayName:
+              data.displayName || fbUser?.displayName || (fbUser?.email ? fbUser.email.split('@')[0] : 'Player'),
+            walletBalance: data.walletBalance || 0,
+            winningCredits: data.winningCredits || 0,
+            isBanned: data.isBanned || false,
+            isAdmin: data.isAdmin || false,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date(),
+          });
+          return;
+        }
+
+        // If profile doesn't exist (or can't be read), keep a safe fallback so the UI can still treat the user as logged in.
+        if (fbUser) {
+          setUser(buildFallbackUser(fbUser));
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        if (fbUser) {
+          setUser(buildFallbackUser(fbUser));
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [buildFallbackUser]
+  );
+
   // Listen for auth state changes
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       setFirebaseUser(fbUser);
-      
+
       if (fbUser) {
-        // Fetch user profile from Firestore
+        // Mark logged-in immediately (don’t wait for Firestore), then hydrate profile.
+        setUser((prev) => prev ?? buildFallbackUser(fbUser));
+        setIsLoading(true);
         setTimeout(() => {
-          fetchUserProfile(fbUser.uid);
+          fetchUserProfile(fbUser.uid, fbUser);
         }, 0);
       } else {
         setUser(null);
@@ -46,32 +105,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
 
     return () => unsubscribe();
-  }, []);
-
-  const fetchUserProfile = async (uid: string) => {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setUser({
-          id: uid,
-          email: data.email || '',
-          phone: data.phone || '',
-          displayName: data.displayName || '',
-          walletBalance: data.walletBalance || 0,
-          winningCredits: data.winningCredits || 0,
-          isBanned: data.isBanned || false,
-          isAdmin: data.isAdmin || false,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [buildFallbackUser, fetchUserProfile]);
 
   const login = useCallback(async (email: string, password: string) => {
     setIsLoading(true);
@@ -140,7 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user,
         firebaseUser,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: !!firebaseUser,
         isAdmin: user?.isAdmin ?? false,
         login,
         signup,
