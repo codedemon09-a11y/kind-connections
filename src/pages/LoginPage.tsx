@@ -60,10 +60,10 @@ const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       {/* Background Effects */}
-      <div className="absolute inset-0 hero-gradient" />
-      <div className="absolute inset-0 cyber-lines opacity-10" />
-      <div className="absolute top-20 left-[20%] w-72 h-72 bg-primary/20 rounded-full blur-[100px] animate-pulse" />
-      <div className="absolute bottom-20 right-[20%] w-72 h-72 bg-neon-pink/20 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute inset-0 hero-gradient pointer-events-none" />
+      <div className="absolute inset-0 cyber-lines opacity-10 pointer-events-none" />
+      <div className="absolute top-20 left-[20%] w-72 h-72 bg-primary/20 rounded-full blur-[100px] animate-pulse pointer-events-none" />
+      <div className="absolute bottom-20 right-[20%] w-72 h-72 bg-neon-pink/20 rounded-full blur-[100px] animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
       {/* Header */}
       <header className="container py-6 relative z-10">
