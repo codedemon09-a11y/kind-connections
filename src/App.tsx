@@ -23,7 +23,9 @@ import AdminWithdrawals from "./pages/admin/AdminWithdrawals";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+// Force HMR refresh
+const App = () => {
+  return (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <DataProvider>
@@ -56,6 +58,7 @@ const App = () => (
       </DataProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
