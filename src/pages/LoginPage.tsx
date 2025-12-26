@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Gamepad2, Mail, UserPlus, Lock, ArrowLeft, Loader2, Zap, Crown, Sparkles, Shield } from 'lucide-react';
 import { toast } from 'sonner';
+import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -139,7 +140,10 @@ const LoginPage: React.FC = () => {
                       className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
                     />
                   </div>
-                  <Button type="submit" className="w-full gap-2 glow-primary hover:glow-primary-intense transition-all duration-300" disabled={isLoading}>
+                  <div className="flex justify-end">
+                    <ForgotPasswordDialog />
+                  </div>
+                  <Button type="submit" className="w-full gap-2 glow-primary hover:glow-primary-intense transition-all duration-300 animate-pulse-glow" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
