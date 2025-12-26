@@ -148,14 +148,22 @@
 
   /* Gaming Card Effects */
   .gaming-card {
+    /* Ensure decorative layers never block form interactions */
     @apply relative overflow-hidden;
+    isolation: isolate;
     background: linear-gradient(135deg, hsl(240 10% 8%), hsl(240 10% 5%));
   }
 
   .gaming-card::before {
     content: '';
-    @apply absolute inset-0 opacity-0 transition-opacity duration-500;
+    @apply pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500;
+    z-index: 0;
     background: linear-gradient(135deg, hsl(280 100% 70% / 0.1), hsl(180 100% 50% / 0.05));
+  }
+
+  .gaming-card > * {
+    position: relative;
+    z-index: 1;
   }
 
   .gaming-card:hover::before {
