@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 // LocalStorage keys
@@ -411,12 +411,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         setTransactions(prev => [newTransaction, ...prev]);
         
-        // Add prize to user's winning credits
+        // Add prize to user's winning credits in local state
         setAllUsers(prev => prev.map(u => 
           u.id === result.oderId 
             ? { ...u, winningCredits: u.winningCredits + prizeAmount } 
             : u
         ));
+
+        // Update user's winningCredits in Firebase
+        try {
+          const userDoc = doc(db, 'users', result.oderId);
+          const userSnapshot = await getDocs(collection(db, 'users'));
+          const userData = userSnapshot.docs.find(d => d.id === result.oderId)?.data();
+          const currentCredits = userData?.winningCredits || 0;
+          await updateDoc(userDoc, { 
+            winningCredits: currentCredits + prizeAmount,
+            updatedAt: new Date()
+          });
+        } catch (error) {
+          console.error('Error updating user winningCredits in Firebase:', error);
+        }
       }
     }
 
