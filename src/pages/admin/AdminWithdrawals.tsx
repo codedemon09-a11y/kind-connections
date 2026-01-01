@@ -17,6 +17,9 @@ import {
   IndianRupee,
   Search,
   Loader2,
+  Copy,
+  ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Dialog,
@@ -26,6 +29,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui/alert';
 
 const AdminWithdrawals: React.FC = () => {
   const { user } = useAuth();
@@ -100,15 +108,45 @@ const AdminWithdrawals: React.FC = () => {
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-display font-bold">Withdrawals</h1>
-          <p className="text-muted-foreground">Process withdrawal requests</p>
+          <p className="text-muted-foreground">Process withdrawal requests via Razorpay Payouts</p>
         </div>
       </div>
+
+      {/* Razorpay Payout Instructions */}
+      <Alert className="border-warning/30 bg-warning/5">
+        <AlertTriangle className="h-4 w-4 text-warning" />
+        <AlertTitle className="text-warning">Manual Payout Required</AlertTitle>
+        <AlertDescription className="mt-2 space-y-2">
+          <p className="text-sm">
+            After approving a withdrawal, you must manually process the payout via Razorpay Dashboard:
+          </p>
+          <ol className="text-sm list-decimal list-inside space-y-1 ml-2">
+            <li>Copy the UPI ID from the request below</li>
+            <li>Go to Razorpay Dashboard → Payouts → Create Payout</li>
+            <li>Enter the amount and UPI ID, then confirm</li>
+          </ol>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-2"
+            onClick={() => window.open('https://dashboard.razorpay.com/app/payouts', '_blank')}
+          >
+            <ExternalLink className="w-4 h-4 mr-2" />
+            Open Razorpay Payouts
+          </Button>
+        </AlertDescription>
+      </Alert>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -203,8 +241,17 @@ const AdminWithdrawals: React.FC = () => {
                       <span className="font-bold text-lg">₹{request.amount}</span>
                       {getStatusBadge(request.status)}
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
                       UPI: <span className="font-mono">{request.upiId}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => copyToClipboard(request.upiId)}
+                        title="Copy UPI ID"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </Button>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Requested: {format(new Date(request.createdAt), 'MMM dd, yyyy • hh:mm a')}

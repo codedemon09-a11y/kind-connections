@@ -29,7 +29,7 @@ const TournamentDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const { tournaments, userRegistrations, joinTournament } = useData();
+  const { tournaments, userRegistrations, joinTournament, addPaymentTransaction } = useData();
   
   const [isJoining, setIsJoining] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -79,23 +79,38 @@ const TournamentDetailPage: React.FC = () => {
     setShowPaymentDialog(true);
   };
 
-  const handlePaymentSuccess = async () => {
+  const handlePaymentSuccess = async (paymentId: string, orderId: string, method: string) => {
     setShowPaymentDialog(false);
     setIsJoining(true);
     
     try {
-      const result = await joinTournament(tournament.id, user!.id);
+      // Record the payment transaction
+      if (addPaymentTransaction) {
+        addPaymentTransaction({
+          oderId: user!.id,
+          amount: tournament.entryFee,
+          paymentId,
+          orderId,
+          method: method as 'razorpay' | 'wallet',
+          tournamentId: tournament.id,
+          status: 'SUCCESS',
+        });
+      }
+
+      // Join the tournament
+      const result = await joinTournament(tournament.id, user!.id, paymentId);
+      
       toast.success(
         <div className="space-y-1">
           <div className="font-semibold">🎉 Successfully Joined!</div>
-          <div className="text-sm">Entry fee: ₹{tournament.entryFee} paid</div>
+          <div className="text-sm">Entry fee: ₹{tournament.entryFee} paid via {method === 'razorpay' ? 'Razorpay' : 'Wallet'}</div>
           <div className="text-sm">Your slot number: #{result.slotNumber}</div>
-          <div className="text-xs text-muted-foreground">Transaction ID: {result.paymentId}</div>
+          <div className="text-xs text-muted-foreground">Payment ID: {paymentId}</div>
         </div>,
         { duration: 5000 }
       );
     } catch (error) {
-      toast.error('Failed to join tournament. Please try again.');
+      toast.error('Failed to join tournament. Please contact support with your payment ID.');
     } finally {
       setIsJoining(false);
     }

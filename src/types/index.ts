@@ -104,6 +104,19 @@ export interface Transaction {
   createdAt: Date;
 }
 
+// Payment Transaction (for Razorpay payments)
+export interface PaymentTransaction {
+  id: string;
+  oderId: string;
+  amount: number;
+  paymentId: string;
+  orderId: string;
+  method: 'razorpay' | 'wallet';
+  tournamentId: string;
+  status: 'SUCCESS' | 'FAILED' | 'PENDING';
+  createdAt: Date;
+}
+
 // User stats interface
 export interface UserStats {
   totalMatches: number;
