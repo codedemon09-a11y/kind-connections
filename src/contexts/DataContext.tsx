@@ -57,7 +57,8 @@ import {
   Transaction,
   TournamentStatus,
   User,
-  PrizeTier
+  PrizeTier,
+  PaymentTransaction
 } from '@/types';
 
 interface DataContextType {
@@ -65,6 +66,7 @@ interface DataContextType {
   userRegistrations: TournamentRegistration[];
   withdrawalRequests: WithdrawalRequest[];
   transactions: Transaction[];
+  paymentTransactions: PaymentTransaction[];
   allUsers: User[];
   matchResults: MatchResult[];
   isLoading: boolean;
@@ -74,7 +76,7 @@ interface DataContextType {
   fetchTransactions: (userId: string) => Promise<void>;
   fetchAllUsers: () => Promise<void>;
   fetchMatchHistory: (userId: string) => Promise<void>;
-  joinTournament: (tournamentId: string, userId: string) => Promise<{ slotNumber: number; paymentId: string }>;
+  joinTournament: (tournamentId: string, userId: string, paymentId?: string) => Promise<{ slotNumber: number; paymentId: string }>;
   createTournament: (tournament: Omit<Tournament, 'id' | 'createdAt' | 'registeredCount'>) => Promise<void>;
   deleteTournament: (tournamentId: string) => Promise<void>;
   updateTournamentRoom: (tournamentId: string, roomId: string, roomPassword: string) => Promise<void>;
@@ -88,6 +90,7 @@ interface DataContextType {
   deleteUser: (userId: string) => Promise<void>;
   getTournamentRegistrations: (tournamentId: string) => Promise<TournamentRegistration[]>;
   updateUserBalance: (userId: string, winningCredits: number) => void;
+  addPaymentTransaction: (payment: Omit<PaymentTransaction, 'id' | 'createdAt'>) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -184,6 +187,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [matchResults, setMatchResults] = useState<MatchResult[]>(() =>
     loadFromStorage(STORAGE_KEYS.MATCH_RESULTS, [])
   );
+  const [paymentTransactions, setPaymentTransactions] = useState<PaymentTransaction[]>(() =>
+    loadFromStorage('battlearena_payments', [])
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   // Persist data to localStorage whenever it changes
@@ -206,6 +212,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     saveToStorage(STORAGE_KEYS.MATCH_RESULTS, matchResults);
   }, [matchResults]);
+
+  useEffect(() => {
+    saveToStorage('battlearena_payments', paymentTransactions);
+  }, [paymentTransactions]);
 
   const fetchTournaments = useCallback(async () => {
     setIsLoading(true);
@@ -277,10 +287,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const joinTournament = useCallback(async (tournamentId: string, userId: string) => {
+  const joinTournament = useCallback(async (tournamentId: string, userId: string, paymentIdInput?: string) => {
     const tournament = tournaments.find(t => t.id === tournamentId);
     const slotNumber = (tournament?.registeredCount || 0) + 1;
-    const paymentId = `pay_${Date.now()}`;
+    const paymentId = paymentIdInput || `pay_${Date.now()}`;
     
     const newRegistration: TournamentRegistration = {
       id: `reg-${Date.now()}`,
@@ -446,6 +456,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     ));
   }, []);
 
+  const addPaymentTransaction = useCallback((payment: Omit<PaymentTransaction, 'id' | 'createdAt'>) => {
+    const newPayment: PaymentTransaction = {
+      ...payment,
+      id: `payment_${Date.now()}`,
+      createdAt: new Date(),
+    };
+    setPaymentTransactions(prev => [newPayment, ...prev]);
+    console.log('Payment transaction recorded:', newPayment);
+  }, []);
+
   const requestWithdrawal = useCallback(async (userId: string, amount: number, upiId: string) => {
     const newRequest: WithdrawalRequest = {
       id: `wd-${Date.now()}`,
@@ -537,6 +557,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         userRegistrations,
         withdrawalRequests,
         transactions,
+        paymentTransactions,
         allUsers,
         matchResults,
         isLoading,
@@ -560,6 +581,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         deleteUser,
         getTournamentRegistrations,
         updateUserBalance,
+        addPaymentTransaction,
       }}
     >
       {children}
