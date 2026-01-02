@@ -241,6 +241,15 @@ const AdminWithdrawals: React.FC = () => {
                       <span className="font-bold text-lg">₹{request.amount}</span>
                       {getStatusBadge(request.status)}
                     </div>
+                    {/* User Details */}
+                    {request.user && (
+                      <div className="text-sm font-medium text-foreground">
+                        {request.user.displayName || 'Unknown User'}
+                        <span className="text-muted-foreground font-normal ml-2">
+                          ({request.user.email})
+                        </span>
+                      </div>
+                    )}
                     <div className="text-sm text-muted-foreground flex items-center gap-2">
                       UPI: <span className="font-mono">{request.upiId}</span>
                       <Button
@@ -253,6 +262,11 @@ const AdminWithdrawals: React.FC = () => {
                         <Copy className="w-3 h-3" />
                       </Button>
                     </div>
+                    {request.user && (
+                      <div className="text-xs text-muted-foreground">
+                        Balance: ₹{request.user.winningCredits} withdrawable
+                      </div>
+                    )}
                     <div className="text-xs text-muted-foreground">
                       Requested: {format(new Date(request.createdAt), 'MMM dd, yyyy • hh:mm a')}
                     </div>

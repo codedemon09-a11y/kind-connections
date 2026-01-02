@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc, addDoc, onSnapshot, query, orderBy, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 // LocalStorage keys
@@ -231,11 +231,69 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(false);
   }, []);
 
+  // Real-time listener for withdrawal requests from Firebase
+  useEffect(() => {
+    const withdrawalsQuery = query(
+      collection(db, 'withdrawals'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(withdrawalsQuery, async (snapshot) => {
+      const withdrawals: WithdrawalRequest[] = [];
+      
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        
+        // Find user details
+        let userData: User | undefined;
+        try {
+          const userDoc = await getDoc(doc(db, 'users', data.oderId));
+          if (userDoc.exists()) {
+            const uData = userDoc.data();
+            userData = {
+              id: userDoc.id,
+              email: uData.email || '',
+              phone: uData.phone || '',
+              displayName: uData.displayName || '',
+              walletBalance: uData.walletBalance || 0,
+              winningCredits: uData.winningCredits || 0,
+              isBanned: uData.isBanned || false,
+              isAdmin: uData.isAdmin || false,
+              createdAt: uData.createdAt?.toDate() || new Date(),
+              updatedAt: uData.updatedAt?.toDate() || new Date(),
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching user for withdrawal:', error);
+        }
+
+        withdrawals.push({
+          id: docSnap.id,
+          oderId: data.oderId,
+          amount: data.amount,
+          status: data.status,
+          upiId: data.upiId,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          processedAt: data.processedAt?.toDate() || null,
+          processedBy: data.processedBy || null,
+          rejectionReason: data.rejectionReason || null,
+          user: userData,
+        });
+      }
+
+      setWithdrawalRequests(withdrawals);
+      console.log('Real-time withdrawal update:', withdrawals.length, 'requests');
+    }, (error) => {
+      console.error('Error listening to withdrawals:', error);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const fetchWithdrawalRequests = useCallback(async () => {
+    // Real-time listener handles this now, but keep for manual refresh
     setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 300));
-    // Withdrawal requests are already loaded from localStorage in initial state
-    // No need to reset to empty mockWithdrawals - keep the current persisted data
     setIsLoading(false);
   }, []);
 
@@ -468,33 +526,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const requestWithdrawal = useCallback(async (userId: string, amount: number, upiId: string) => {
-    const newRequest: WithdrawalRequest = {
-      id: `wd-${Date.now()}`,
-      oderId: userId,
-      amount,
-      status: 'PENDING',
-      upiId,
-      createdAt: new Date(),
-      processedAt: null,
-      processedBy: null,
-      rejectionReason: null,
-    };
-    setWithdrawalRequests(prev => [newRequest, ...prev]);
+    try {
+      // Add to Firebase for real-time sync
+      await addDoc(collection(db, 'withdrawals'), {
+        oderId: userId,
+        amount,
+        status: 'PENDING',
+        upiId,
+        createdAt: Timestamp.now(),
+        processedAt: null,
+        processedBy: null,
+        rejectionReason: null,
+      });
+      console.log('Withdrawal request created in Firebase');
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      throw error;
+    }
   }, []);
 
   const processWithdrawal = useCallback(async (requestId: string, approved: boolean, reason?: string) => {
     const request = withdrawalRequests.find(r => r.id === requestId);
     
-    setWithdrawalRequests(prev => prev.map(r => 
-      r.id === requestId 
-        ? { 
-            ...r, 
-            status: approved ? 'APPROVED' : 'REJECTED',
-            processedAt: new Date(),
-            rejectionReason: reason || null,
-          }
-        : r
-    ));
+    // Update withdrawal status in Firebase
+    try {
+      await updateDoc(doc(db, 'withdrawals', requestId), {
+        status: approved ? 'APPROVED' : 'REJECTED',
+        processedAt: Timestamp.now(),
+        rejectionReason: reason || null,
+      });
+      console.log('Withdrawal status updated in Firebase');
+    } catch (error) {
+      console.error('Error updating withdrawal in Firebase:', error);
+    }
 
     // If approved, deduct from user's winning credits and add transaction
     if (approved && request) {
