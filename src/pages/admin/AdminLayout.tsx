@@ -50,7 +50,7 @@ const AdminLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="h-screen bg-background flex overflow-hidden">
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border/50 transform transition-transform duration-300 lg:relative lg:transform-none ${
@@ -121,7 +121,7 @@ const AdminLayout: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b border-border/50">
           <div className="flex items-center justify-between p-4">
@@ -137,7 +137,7 @@ const AdminLayout: React.FC = () => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 md:p-8">
+        <main className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8">
           <Outlet />
         </main>
       </div>
