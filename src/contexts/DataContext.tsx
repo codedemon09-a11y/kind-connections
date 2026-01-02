@@ -233,8 +233,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchWithdrawalRequests = useCallback(async () => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setWithdrawalRequests(mockWithdrawals);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    // Withdrawal requests are already loaded from localStorage in initial state
+    // No need to reset to empty mockWithdrawals - keep the current persisted data
     setIsLoading(false);
   }, []);
 
@@ -497,11 +498,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // If approved, deduct from user's winning credits and add transaction
     if (approved && request) {
+      // Update local state
       setAllUsers(prev => prev.map(u => 
         u.id === request.oderId 
           ? { ...u, winningCredits: Math.max(0, u.winningCredits - request.amount) } 
           : u
       ));
+
+      // Also update Firebase to persist the deduction
+      try {
+        const userDoc = doc(db, 'users', request.oderId);
+        const userSnapshot = await getDoc(userDoc);
+        if (userSnapshot.exists()) {
+          const userData = userSnapshot.data();
+          const currentCredits = userData?.winningCredits || 0;
+          const newCredits = Math.max(0, currentCredits - request.amount);
+          await updateDoc(userDoc, { 
+            winningCredits: newCredits,
+            updatedAt: new Date()
+          });
+          console.log(`Deducted ₹${request.amount} from user ${request.oderId}. New balance: ₹${newCredits}`);
+        }
+      } catch (error) {
+        console.error('Error updating user winningCredits in Firebase:', error);
+      }
 
       const withdrawalTransaction: Transaction = {
         id: `txn-wd-${Date.now()}`,
