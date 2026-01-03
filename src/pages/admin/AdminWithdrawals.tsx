@@ -37,7 +37,7 @@ import {
 
 const AdminWithdrawals: React.FC = () => {
   const { user } = useAuth();
-  const { withdrawalRequests, fetchWithdrawalRequests, processWithdrawal, isLoading } = useData();
+  const { withdrawalRequests, fetchWithdrawalRequests, processWithdrawal, isLoading, withdrawalListenerError } = useData();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
@@ -122,6 +122,16 @@ const AdminWithdrawals: React.FC = () => {
           <p className="text-muted-foreground">Process withdrawal requests via Razorpay Payouts</p>
         </div>
       </div>
+
+      {withdrawalListenerError === 'permission-denied' && (
+        <Alert className="border-destructive/30 bg-destructive/5">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          <AlertTitle className="text-destructive">Withdrawals are blocked by Firebase Rules</AlertTitle>
+          <AlertDescription className="mt-2 text-sm">
+            Admin can’t read <code>/withdrawals</code> ("Missing or insufficient permissions"). Update your Firestore Rules to allow admins to read/update withdrawals (see <strong>docs/FIREBASE_SETUP.md</strong> → section 4), then reload.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Razorpay Payout Instructions */}
       <Alert className="border-warning/30 bg-warning/5">
