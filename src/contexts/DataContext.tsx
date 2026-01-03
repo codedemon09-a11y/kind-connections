@@ -246,7 +246,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const baseRef = collection(db, 'withdrawals');
 
     // Admin listens to all withdrawals; normal users only listen to their own.
-    // (This avoids permission errors for non-admin users in production rules.)
+    // For non-admin users, we use a simpler query without orderBy to avoid index requirements
     const withdrawalsQuery = isAdmin
       ? query(baseRef, orderBy('createdAt', 'desc'))
       : query(baseRef, where('oderId', '==', user.id));
@@ -300,13 +300,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           });
         }
 
-        // If query is not ordered (non-admin path), ensure newest first.
+        // Sort newest first
         withdrawals.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         setWithdrawalRequests(withdrawals);
       },
       (error: any) => {
+        // Don't block on permission errors - user can still submit requests
+        console.warn('Withdrawal listener error (non-blocking):', error?.code || error?.message);
         setWithdrawalListenerError(error?.code || error?.message || 'unknown');
-        console.error('Error listening to withdrawals:', error);
+        // Keep existing withdrawal requests in state, don't clear them
       }
     );
 
