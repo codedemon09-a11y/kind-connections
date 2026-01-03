@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc, addDoc, onSnapshot, query, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc, addDoc, onSnapshot, query, orderBy, where, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
 // LocalStorage keys
 const STORAGE_KEYS = {
@@ -70,6 +71,7 @@ interface DataContextType {
   allUsers: User[];
   matchResults: MatchResult[];
   isLoading: boolean;
+  withdrawalListenerError: string | null;
   fetchTournaments: () => Promise<void>;
   fetchUserRegistrations: (userId: string) => Promise<void>;
   fetchWithdrawalRequests: () => Promise<void>;
@@ -170,6 +172,8 @@ const mockWithdrawals: WithdrawalRequest[] = [];
 const mockTransactions: Transaction[] = [];
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { user, isAdmin, isAuthenticated } = useAuth();
+
   // Load initial state from localStorage or use defaults
   const [tournaments, setTournaments] = useState<Tournament[]>(() => 
     loadFromStorage(STORAGE_KEYS.TOURNAMENTS, mockTournaments)
@@ -191,6 +195,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadFromStorage('battlearena_payments', [])
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [withdrawalListenerError, setWithdrawalListenerError] = useState<string | null>(null);
 
   // Persist data to localStorage whenever it changes
   useEffect(() => {
@@ -233,62 +238,80 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Real-time listener for withdrawal requests from Firebase
   useEffect(() => {
-    const withdrawalsQuery = query(
-      collection(db, 'withdrawals'),
-      orderBy('createdAt', 'desc')
-    );
+    if (!isAuthenticated || !user?.id) {
+      setWithdrawalListenerError(null);
+      return;
+    }
 
-    const unsubscribe = onSnapshot(withdrawalsQuery, async (snapshot) => {
-      const withdrawals: WithdrawalRequest[] = [];
-      
-      for (const docSnap of snapshot.docs) {
-        const data = docSnap.data();
-        
-        // Find user details
-        let userData: User | undefined;
-        try {
-          const userDoc = await getDoc(doc(db, 'users', data.oderId));
-          if (userDoc.exists()) {
-            const uData = userDoc.data();
-            userData = {
-              id: userDoc.id,
-              email: uData.email || '',
-              phone: uData.phone || '',
-              displayName: uData.displayName || '',
-              walletBalance: uData.walletBalance || 0,
-              winningCredits: uData.winningCredits || 0,
-              isBanned: uData.isBanned || false,
-              isAdmin: uData.isAdmin || false,
-              createdAt: uData.createdAt?.toDate() || new Date(),
-              updatedAt: uData.updatedAt?.toDate() || new Date(),
-            };
+    const baseRef = collection(db, 'withdrawals');
+
+    // Admin listens to all withdrawals; normal users only listen to their own.
+    // (This avoids permission errors for non-admin users in production rules.)
+    const withdrawalsQuery = isAdmin
+      ? query(baseRef, orderBy('createdAt', 'desc'))
+      : query(baseRef, where('oderId', '==', user.id));
+
+    const unsubscribe = onSnapshot(
+      withdrawalsQuery,
+      async (snapshot) => {
+        setWithdrawalListenerError(null);
+
+        const withdrawals: WithdrawalRequest[] = [];
+
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+
+          // Only admins need to fetch other users' details.
+          let userData: User | undefined;
+          if (isAdmin) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', data.oderId));
+              if (userDoc.exists()) {
+                const uData = userDoc.data();
+                userData = {
+                  id: userDoc.id,
+                  email: uData.email || '',
+                  phone: uData.phone || '',
+                  displayName: uData.displayName || '',
+                  walletBalance: uData.walletBalance || 0,
+                  winningCredits: uData.winningCredits || 0,
+                  isBanned: uData.isBanned || false,
+                  isAdmin: uData.isAdmin || false,
+                  createdAt: uData.createdAt?.toDate() || new Date(),
+                  updatedAt: uData.updatedAt?.toDate() || new Date(),
+                };
+              }
+            } catch (error) {
+              console.error('Error fetching user for withdrawal:', error);
+            }
           }
-        } catch (error) {
-          console.error('Error fetching user for withdrawal:', error);
+
+          withdrawals.push({
+            id: docSnap.id,
+            oderId: data.oderId,
+            amount: data.amount,
+            status: data.status,
+            upiId: data.upiId,
+            createdAt: data.createdAt?.toDate() || new Date(),
+            processedAt: data.processedAt?.toDate() || null,
+            processedBy: data.processedBy || null,
+            rejectionReason: data.rejectionReason || null,
+            user: userData,
+          });
         }
 
-        withdrawals.push({
-          id: docSnap.id,
-          oderId: data.oderId,
-          amount: data.amount,
-          status: data.status,
-          upiId: data.upiId,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          processedAt: data.processedAt?.toDate() || null,
-          processedBy: data.processedBy || null,
-          rejectionReason: data.rejectionReason || null,
-          user: userData,
-        });
+        // If query is not ordered (non-admin path), ensure newest first.
+        withdrawals.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        setWithdrawalRequests(withdrawals);
+      },
+      (error: any) => {
+        setWithdrawalListenerError(error?.code || error?.message || 'unknown');
+        console.error('Error listening to withdrawals:', error);
       }
-
-      setWithdrawalRequests(withdrawals);
-      console.log('Real-time withdrawal update:', withdrawals.length, 'requests');
-    }, (error) => {
-      console.error('Error listening to withdrawals:', error);
-    });
+    );
 
     return () => unsubscribe();
-  }, []);
+  }, [isAuthenticated, isAdmin, user?.id]);
 
   const fetchWithdrawalRequests = useCallback(async () => {
     // Real-time listener handles this now, but keep for manual refresh
@@ -645,6 +668,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         allUsers,
         matchResults,
         isLoading,
+        withdrawalListenerError,
         fetchTournaments,
         fetchUserRegistrations,
         fetchWithdrawalRequests,

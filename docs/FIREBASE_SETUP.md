@@ -90,35 +90,52 @@ After Firestore is enabled, create the following collection:
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
     // Users collection rules
     match /users/{userId} {
       // Anyone authenticated can read user profiles
       allow read: if request.auth != null;
-      
+
       // Users can only update their own profile
       allow update: if request.auth != null && request.auth.uid == userId;
-      
+
       // Only authenticated users can create their own profile
       allow create: if request.auth != null && request.auth.uid == userId;
-      
-      // Only admins can delete users (check isAdmin field)
-      allow delete: if request.auth != null && 
-                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+
+      // Only admins can delete users
+      allow delete: if isAdmin();
     }
-    
-    // Transactions collection (if you add it)
+
+    // Withdrawals collection (used by the app)
+    match /withdrawals/{withdrawalId} {
+      // Users can create their own withdrawal request
+      allow create: if request.auth != null &&
+        request.resource.data.oderId == request.auth.uid &&
+        request.resource.data.status == 'PENDING';
+
+      // Admins can read all; users can read only their own
+      allow read: if isAdmin() || (request.auth != null && resource.data.oderId == request.auth.uid);
+
+      // Only admins can approve/reject (update)
+      allow update, delete: if isAdmin();
+    }
+
+    // Transactions collection (optional)
     match /transactions/{transactionId} {
-      allow read: if request.auth != null && 
-                    resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null &&
+        resource.data.userId == request.auth.uid;
       allow write: if false; // Only backend should write
     }
-    
-    // Tournaments collection (if you add it)
+
+    // Tournaments collection (optional)
     match /tournaments/{tournamentId} {
       allow read: if true; // Public read
-      allow write: if request.auth != null && 
-                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow write: if isAdmin();
     }
   }
 }
