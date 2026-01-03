@@ -111,17 +111,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Withdrawals collection (used by the app)
+    // Withdrawals collection
     match /withdrawals/{withdrawalId} {
-      // Users can create their own withdrawal request
+      // Users can create their own withdrawal request with PENDING status
       allow create: if request.auth != null &&
         request.resource.data.oderId == request.auth.uid &&
         request.resource.data.status == 'PENDING';
 
-      // Admins can read all; users can read only their own
-      allow read: if isAdmin() || (request.auth != null && resource.data.oderId == request.auth.uid);
+      // Admins can read all withdrawals; users can read their own
+      allow read: if request.auth != null && 
+        (isAdmin() || resource.data.oderId == request.auth.uid);
 
-      // Only admins can approve/reject (update)
+      // Only admins can update or delete withdrawals
       allow update, delete: if isAdmin();
     }
 
