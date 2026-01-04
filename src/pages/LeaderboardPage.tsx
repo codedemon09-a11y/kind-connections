@@ -6,6 +6,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import { useData } from "@/contexts/DataContext";
+import { collection, getDocs, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { MatchResult } from "@/types";
 
 interface LeaderboardPlayer {
   id: string;
@@ -54,9 +57,33 @@ const formatCurrency = (amount: number) => {
 const LeaderboardPage = () => {
   const [activeTab, setActiveTab] = useState<"earnings" | "wins">("earnings");
   const { allUsers, fetchAllUsers } = useData();
+  const [allMatchResults, setAllMatchResults] = useState<MatchResult[]>([]);
 
   useEffect(() => {
     fetchAllUsers();
+    
+    // Fetch all match results for leaderboard stats
+    const fetchAllMatchResults = async () => {
+      try {
+        const snapshot = await getDocs(query(collection(db, 'matchResults')));
+        const results: MatchResult[] = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            tournamentId: d.tournamentId,
+            userId: d.userId,
+            position: d.position,
+            kills: d.kills || 0,
+            prizeAmount: d.prizeAmount || 0,
+            createdAt: d.createdAt?.toDate?.() || new Date(d.createdAt),
+          };
+        });
+        setAllMatchResults(results);
+      } catch (error) {
+        console.warn('Error fetching match results for leaderboard:', error);
+      }
+    };
+    fetchAllMatchResults();
   }, [fetchAllUsers]);
 
   // Transform users to leaderboard format with real data from Firebase
@@ -64,11 +91,11 @@ const LeaderboardPage = () => {
     return allUsers
       .filter(user => !user.isBanned && !user.isAdmin)
       .map(user => {
-        // Real data from Firebase user record
-        const totalEarnings = user.winningCredits || 0;
-        // These will be accurate once match results are tracked
-        const totalWins = totalEarnings > 0 ? Math.ceil(totalEarnings / 25) : 0;
-        const totalMatches = totalWins > 0 ? Math.ceil(totalWins * 1.3) : 0;
+        // Get real match stats from matchResults collection
+        const userResults = allMatchResults.filter(r => r.userId === user.id);
+        const totalMatches = userResults.length;
+        const totalWins = userResults.filter(r => r.position <= 10).length; // Top 10 = win
+        const totalEarnings = userResults.reduce((sum, r) => sum + (r.prizeAmount || 0), 0);
         const winRate = totalMatches > 0 ? (totalWins / totalMatches) * 100 : 0;
         
         return {
@@ -81,7 +108,7 @@ const LeaderboardPage = () => {
           winRate: Math.min(100, winRate),
         };
       });
-  }, [allUsers]);
+  }, [allUsers, allMatchResults]);
 
   const sortedByEarnings = useMemo(() => 
     [...leaderboardData].sort((a, b) => b.totalEarnings - a.totalEarnings).map((p, i) => ({ ...p, rank: i + 1 })),

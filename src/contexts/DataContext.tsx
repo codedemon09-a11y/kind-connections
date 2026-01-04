@@ -717,11 +717,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (userDoc.exists()) {
           const currentCredits = userDoc.data().winningCredits || 0;
           const newCredits = Math.max(0, currentCredits - request.amount);
+          
+          // Update Firebase
           await updateDoc(doc(db, 'users', request.oderId), { 
             winningCredits: newCredits,
             updatedAt: Timestamp.now(),
           });
           console.log(`Deducted ₹${request.amount} from user ${request.oderId}. New balance: ₹${newCredits}`);
+          
+          // Update local state immediately
+          setAllUsers(prev => prev.map(u => 
+            u.id === request.oderId ? { ...u, winningCredits: newCredits } : u
+          ));
         }
 
         // Add withdrawal transaction
@@ -734,11 +741,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           createdAt: Timestamp.now(),
         });
       }
+      
+      // Refresh users to sync with Firebase
+      await fetchAllUsers();
     } catch (error) {
       console.error('Error processing withdrawal:', error);
       throw error;
     }
-  }, [withdrawalRequests, user?.id]);
+  }, [withdrawalRequests, user?.id, fetchAllUsers]);
 
   const disqualifyPlayer = useCallback(async (registrationId: string, reason: string) => {
     try {
