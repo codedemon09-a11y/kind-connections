@@ -113,10 +113,8 @@ service cloud.firestore {
 
     // Withdrawals collection
     match /withdrawals/{withdrawalId} {
-      // Users can create their own withdrawal request with PENDING status
-      allow create: if request.auth != null &&
-        request.resource.data.oderId == request.auth.uid &&
-        request.resource.data.status == 'PENDING';
+      // Users can create their own withdrawal request
+      allow create: if request.auth != null;
 
       // Admins can read all withdrawals; users can read their own
       allow read: if request.auth != null && 
@@ -124,6 +122,34 @@ service cloud.firestore {
 
       // Only admins can update or delete withdrawals
       allow update, delete: if isAdmin();
+    }
+
+    // Tournaments collection
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Registrations collection
+    match /registrations/{registrationId} {
+      allow read: if request.auth != null && 
+        (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // Transactions collection
+    match /transactions/{transactionId} {
+      allow read: if request.auth != null && 
+        (isAdmin() || resource.data.userId == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // Match Results collection
+    match /matchResults/{resultId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isAdmin();
     }
 
     // Transactions collection (optional)

@@ -1,55 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc, addDoc, onSnapshot, query, orderBy, where, Timestamp } from 'firebase/firestore';
+import { 
+  collection, getDocs, doc, updateDoc, deleteDoc, getDoc, addDoc, setDoc,
+  onSnapshot, query, orderBy, where, Timestamp, writeBatch
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
-
-// LocalStorage keys
-const STORAGE_KEYS = {
-  TOURNAMENTS: 'battlearena_tournaments',
-  REGISTRATIONS: 'battlearena_registrations',
-  WITHDRAWALS: 'battlearena_withdrawals',
-  TRANSACTIONS: 'battlearena_transactions',
-  MATCH_RESULTS: 'battlearena_match_results',
-};
-
-// Helper to parse dates from localStorage
-const parseDates = (obj: any): any => {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(obj)) {
-    return new Date(obj);
-  }
-  if (Array.isArray(obj)) return obj.map(parseDates);
-  if (typeof obj === 'object') {
-    const result: any = {};
-    for (const key in obj) {
-      result[key] = parseDates(obj[key]);
-    }
-    return result;
-  }
-  return obj;
-};
-
-// Load from localStorage
-const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      return parseDates(JSON.parse(stored));
-    }
-  } catch (error) {
-    console.error(`Error loading ${key} from localStorage:`, error);
-  }
-  return defaultValue;
-};
-
-// Save to localStorage
-const saveToStorage = <T,>(key: string, data: T): void => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
-    console.error(`Error saving ${key} to localStorage:`, error);
-  }
-};
 import { 
   Tournament, 
   TournamentRegistration, 
@@ -105,136 +60,170 @@ const defaultPrizeTiers: PrizeTier[] = [
   { rankStart: 41, rankEnd: 80, prizeAmount: 10 },
 ];
 
-// Mock data
-const mockTournaments: Tournament[] = [
-  {
-    id: 'tournament-1',
-    game: 'BGMI',
-    entryFee: 25,
-    maxPlayers: 100,
-    winnerCount: 80,
-    prizeTiers: defaultPrizeTiers,
-    matchDateTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-    status: 'UPCOMING',
-    roomId: null,
-    roomPassword: null,
-    roomReleased: false,
-    rules: 'Standard BGMI rules apply. No emulators allowed.',
-    createdAt: new Date(),
-    createdBy: 'admin-1',
-    registeredCount: 67,
-  },
-  {
-    id: 'tournament-2',
-    game: 'FREE_FIRE',
-    entryFee: 20,
-    maxPlayers: 50,
-    winnerCount: 40,
-    prizeTiers: [
-      { rankStart: 1, rankEnd: 3, prizeAmount: 60 },
-      { rankStart: 4, rankEnd: 10, prizeAmount: 35 },
-      { rankStart: 11, rankEnd: 25, prizeAmount: 20 },
-      { rankStart: 26, rankEnd: 40, prizeAmount: 10 },
-    ],
-    matchDateTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
-    status: 'UPCOMING',
-    roomId: null,
-    roomPassword: null,
-    roomReleased: false,
-    rules: 'Standard Free Fire rules. Mobile devices only.',
-    createdAt: new Date(),
-    createdBy: 'admin-1',
-    registeredCount: 23,
-  },
-  {
-    id: 'tournament-3',
-    game: 'BGMI',
-    entryFee: 50,
-    maxPlayers: 100,
-    winnerCount: 80,
-    prizeTiers: defaultPrizeTiers,
-    matchDateTime: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    status: 'COMPLETED',
-    roomId: '12345678',
-    roomPassword: 'abc123',
-    roomReleased: true,
-    rules: 'Premium tournament with higher stakes.',
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    createdBy: 'admin-1',
-    registeredCount: 100,
-  },
-];
-
-const mockRegistrations: TournamentRegistration[] = [];
-
-const mockWithdrawals: WithdrawalRequest[] = [];
-
-const mockTransactions: Transaction[] = [];
+// Helper to convert Firestore timestamp to Date
+const toDate = (value: any): Date => {
+  if (!value) return new Date();
+  if (value.toDate) return value.toDate();
+  if (value instanceof Date) return value;
+  return new Date(value);
+};
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user, isAdmin, isAuthenticated } = useAuth();
 
-  // Load initial state from localStorage or use defaults
-  const [tournaments, setTournaments] = useState<Tournament[]>(() => 
-    loadFromStorage(STORAGE_KEYS.TOURNAMENTS, mockTournaments)
-  );
-  const [userRegistrations, setUserRegistrations] = useState<TournamentRegistration[]>(() =>
-    loadFromStorage(STORAGE_KEYS.REGISTRATIONS, [])
-  );
-  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>(() =>
-    loadFromStorage(STORAGE_KEYS.WITHDRAWALS, [])
-  );
-  const [transactions, setTransactions] = useState<Transaction[]>(() =>
-    loadFromStorage(STORAGE_KEYS.TRANSACTIONS, [])
-  );
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [userRegistrations, setUserRegistrations] = useState<TournamentRegistration[]>([]);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [matchResults, setMatchResults] = useState<MatchResult[]>(() =>
-    loadFromStorage(STORAGE_KEYS.MATCH_RESULTS, [])
-  );
-  const [paymentTransactions, setPaymentTransactions] = useState<PaymentTransaction[]>(() =>
-    loadFromStorage('battlearena_payments', [])
-  );
+  const [matchResults, setMatchResults] = useState<MatchResult[]>([]);
+  const [paymentTransactions, setPaymentTransactions] = useState<PaymentTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [withdrawalListenerError, setWithdrawalListenerError] = useState<string | null>(null);
 
-  // Persist data to localStorage whenever it changes
+  // Real-time listener for tournaments from Firebase
   useEffect(() => {
-    saveToStorage(STORAGE_KEYS.TOURNAMENTS, tournaments);
-  }, [tournaments]);
+    const tournamentsQuery = query(collection(db, 'tournaments'), orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(
+      tournamentsQuery,
+      (snapshot) => {
+        const tournamentsData: Tournament[] = snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            game: data.game,
+            entryFee: data.entryFee,
+            maxPlayers: data.maxPlayers,
+            winnerCount: data.winnerCount,
+            prizeTiers: data.prizeTiers || defaultPrizeTiers,
+            matchDateTime: toDate(data.matchDateTime),
+            status: data.status,
+            roomId: data.roomId || null,
+            roomPassword: data.roomPassword || null,
+            roomReleased: data.roomReleased || false,
+            rules: data.rules || '',
+            createdAt: toDate(data.createdAt),
+            createdBy: data.createdBy,
+            registeredCount: data.registeredCount || 0,
+          };
+        });
+        setTournaments(tournamentsData);
+      },
+      (error) => {
+        console.warn('Tournament listener error:', error?.code || error?.message);
+      }
+    );
 
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.REGISTRATIONS, userRegistrations);
-  }, [userRegistrations]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.WITHDRAWALS, withdrawalRequests);
-  }, [withdrawalRequests]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.TRANSACTIONS, transactions);
-  }, [transactions]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.MATCH_RESULTS, matchResults);
-  }, [matchResults]);
-
-  useEffect(() => {
-    saveToStorage('battlearena_payments', paymentTransactions);
-  }, [paymentTransactions]);
-
-  const fetchTournaments = useCallback(async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    // Tournaments are already loaded from localStorage in initial state
-    setIsLoading(false);
+    return () => unsubscribe();
   }, []);
 
-  const fetchUserRegistrations = useCallback(async (userId: string) => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setUserRegistrations(mockRegistrations.filter(r => r.userId === userId));
-    setIsLoading(false);
-  }, []);
+  // Real-time listener for registrations
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const registrationsQuery = query(
+      collection(db, 'registrations'),
+      where('userId', '==', user.id)
+    );
+    
+    const unsubscribe = onSnapshot(
+      registrationsQuery,
+      (snapshot) => {
+        const registrationsData: TournamentRegistration[] = snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            tournamentId: data.tournamentId,
+            oderId: data.oderId || '',
+            userId: data.userId,
+            paymentId: data.paymentId,
+            paymentStatus: data.paymentStatus,
+            slotNumber: data.slotNumber,
+            joinedAt: toDate(data.joinedAt),
+            isDisqualified: data.isDisqualified || false,
+            disqualificationReason: data.disqualificationReason || null,
+          };
+        });
+        setUserRegistrations(registrationsData);
+      },
+      (error) => {
+        console.warn('Registration listener error:', error?.code || error?.message);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  // Real-time listener for transactions
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const transactionsQuery = query(
+      collection(db, 'transactions'),
+      where('userId', '==', user.id),
+      orderBy('createdAt', 'desc')
+    );
+    
+    const unsubscribe = onSnapshot(
+      transactionsQuery,
+      (snapshot) => {
+        const transactionsData: Transaction[] = snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            userId: data.userId,
+            type: data.type,
+            amount: data.amount,
+            description: data.description,
+            referenceId: data.referenceId || null,
+            createdAt: toDate(data.createdAt),
+          };
+        });
+        setTransactions(transactionsData);
+      },
+      (error) => {
+        console.warn('Transaction listener error:', error?.code || error?.message);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  // Real-time listener for match results
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const resultsQuery = query(
+      collection(db, 'matchResults'),
+      where('userId', '==', user.id),
+      orderBy('createdAt', 'desc')
+    );
+    
+    const unsubscribe = onSnapshot(
+      resultsQuery,
+      (snapshot) => {
+        const resultsData: MatchResult[] = snapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            tournamentId: data.tournamentId,
+            userId: data.userId,
+            position: data.position,
+            kills: data.kills,
+            prizeAmount: data.prizeAmount,
+            createdAt: toDate(data.createdAt),
+          };
+        });
+        setMatchResults(resultsData);
+      },
+      (error) => {
+        console.warn('Match results listener error:', error?.code || error?.message);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.id]);
 
   // Real-time listener for withdrawal requests from Firebase
   useEffect(() => {
@@ -245,8 +234,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const baseRef = collection(db, 'withdrawals');
 
-    // Admin listens to all withdrawals; normal users only listen to their own.
-    // For non-admin users, we use a simpler query without orderBy to avoid index requirements
+    // Admin listens to all withdrawals; normal users only listen to their own
     const withdrawalsQuery = isAdmin
       ? query(baseRef, orderBy('createdAt', 'desc'))
       : query(baseRef, where('oderId', '==', user.id));
@@ -261,7 +249,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         for (const docSnap of snapshot.docs) {
           const data = docSnap.data();
 
-          // Only admins need to fetch other users' details.
           let userData: User | undefined;
           if (isAdmin) {
             try {
@@ -277,8 +264,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                   winningCredits: uData.winningCredits || 0,
                   isBanned: uData.isBanned || false,
                   isAdmin: uData.isAdmin || false,
-                  createdAt: uData.createdAt?.toDate() || new Date(),
-                  updatedAt: uData.updatedAt?.toDate() || new Date(),
+                  createdAt: toDate(uData.createdAt),
+                  updatedAt: toDate(uData.updatedAt),
                 };
               }
             } catch (error) {
@@ -292,31 +279,89 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             amount: data.amount,
             status: data.status,
             upiId: data.upiId,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            processedAt: data.processedAt?.toDate() || null,
+            createdAt: toDate(data.createdAt),
+            processedAt: data.processedAt ? toDate(data.processedAt) : null,
             processedBy: data.processedBy || null,
             rejectionReason: data.rejectionReason || null,
             user: userData,
           });
         }
 
-        // Sort newest first
         withdrawals.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         setWithdrawalRequests(withdrawals);
       },
       (error: any) => {
-        // Don't block on permission errors - user can still submit requests
         console.warn('Withdrawal listener error (non-blocking):', error?.code || error?.message);
         setWithdrawalListenerError(error?.code || error?.message || 'unknown');
-        // Keep existing withdrawal requests in state, don't clear them
       }
     );
 
     return () => unsubscribe();
   }, [isAuthenticated, isAdmin, user?.id]);
 
+  const fetchTournaments = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const snapshot = await getDocs(query(collection(db, 'tournaments'), orderBy('createdAt', 'desc')));
+      const data: Tournament[] = snapshot.docs.map(docSnap => {
+        const d = docSnap.data();
+        return {
+          id: docSnap.id,
+          game: d.game,
+          entryFee: d.entryFee,
+          maxPlayers: d.maxPlayers,
+          winnerCount: d.winnerCount,
+          prizeTiers: d.prizeTiers || defaultPrizeTiers,
+          matchDateTime: toDate(d.matchDateTime),
+          status: d.status,
+          roomId: d.roomId || null,
+          roomPassword: d.roomPassword || null,
+          roomReleased: d.roomReleased || false,
+          rules: d.rules || '',
+          createdAt: toDate(d.createdAt),
+          createdBy: d.createdBy,
+          registeredCount: d.registeredCount || 0,
+        };
+      });
+      setTournaments(data);
+    } catch (error) {
+      console.error('Error fetching tournaments:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchUserRegistrations = useCallback(async (userId: string) => {
+    setIsLoading(true);
+    try {
+      const snapshot = await getDocs(query(
+        collection(db, 'registrations'),
+        where('userId', '==', userId)
+      ));
+      const data: TournamentRegistration[] = snapshot.docs.map(docSnap => {
+        const d = docSnap.data();
+        return {
+          id: docSnap.id,
+          tournamentId: d.tournamentId,
+          oderId: d.oderId || '',
+          userId: d.userId,
+          paymentId: d.paymentId,
+          paymentStatus: d.paymentStatus,
+          slotNumber: d.slotNumber,
+          joinedAt: toDate(d.joinedAt),
+          isDisqualified: d.isDisqualified || false,
+          disqualificationReason: d.disqualificationReason || null,
+        };
+      });
+      setUserRegistrations(data);
+    } catch (error) {
+      console.error('Error fetching registrations:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const fetchWithdrawalRequests = useCallback(async () => {
-    // Real-time listener handles this now, but keep for manual refresh
     setIsLoading(true);
     await new Promise(resolve => setTimeout(resolve, 300));
     setIsLoading(false);
@@ -324,33 +369,69 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchTransactions = useCallback(async (userId: string) => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setTransactions(mockTransactions.filter(t => t.userId === userId));
-    setIsLoading(false);
+    try {
+      const snapshot = await getDocs(query(
+        collection(db, 'transactions'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      ));
+      const data: Transaction[] = snapshot.docs.map(docSnap => {
+        const d = docSnap.data();
+        return {
+          id: docSnap.id,
+          userId: d.userId,
+          type: d.type,
+          amount: d.amount,
+          description: d.description,
+          referenceId: d.referenceId || null,
+          createdAt: toDate(d.createdAt),
+        };
+      });
+      setTransactions(data);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const fetchMatchHistory = useCallback(async (userId: string) => {
     setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    // Get match results for this user with tournament data
-    const userResults = matchResults
-      .filter(r => r.userId === userId)
-      .map(r => ({
-        ...r,
-        tournament: tournaments.find(t => t.id === r.tournamentId)
-      }));
-    setMatchResults(prev => prev.filter(r => r.userId !== userId).concat(userResults));
-    setIsLoading(false);
-  }, [matchResults, tournaments]);
+    try {
+      const snapshot = await getDocs(query(
+        collection(db, 'matchResults'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      ));
+      const results: MatchResult[] = snapshot.docs.map(docSnap => {
+        const d = docSnap.data();
+        return {
+          id: docSnap.id,
+          tournamentId: d.tournamentId,
+          userId: d.userId,
+          position: d.position,
+          kills: d.kills,
+          prizeAmount: d.prizeAmount,
+          createdAt: toDate(d.createdAt),
+          tournament: tournaments.find(t => t.id === d.tournamentId),
+        };
+      });
+      setMatchResults(results);
+    } catch (error) {
+      console.error('Error fetching match history:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [tournaments]);
 
   const fetchAllUsers = useCallback(async () => {
     setIsLoading(true);
     try {
       const usersSnapshot = await getDocs(collection(db, 'users'));
-      const users: User[] = usersSnapshot.docs.map(doc => {
-        const data = doc.data();
+      const users: User[] = usersSnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
         return {
-          id: doc.id,
+          id: docSnap.id,
           email: data.email || '',
           phone: data.phone || '',
           displayName: data.displayName || '',
@@ -358,8 +439,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           winningCredits: data.winningCredits || 0,
           isBanned: data.isBanned || false,
           isAdmin: data.isAdmin || false,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
+          createdAt: toDate(data.createdAt),
+          updatedAt: toDate(data.updatedAt),
         };
       });
       setAllUsers(users);
@@ -371,96 +452,135 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const joinTournament = useCallback(async (tournamentId: string, userId: string, paymentIdInput?: string) => {
+  const joinTournament = useCallback(async (tournamentId: string, oderId: string, paymentIdInput?: string) => {
     const tournament = tournaments.find(t => t.id === tournamentId);
-    const slotNumber = (tournament?.registeredCount || 0) + 1;
+    if (!tournament) throw new Error('Tournament not found');
+
+    const slotNumber = (tournament.registeredCount || 0) + 1;
     const paymentId = paymentIdInput || `pay_${Date.now()}`;
     
-    const newRegistration: TournamentRegistration = {
-      id: `reg-${Date.now()}`,
-      tournamentId,
-      userId,
-      paymentId,
-      paymentStatus: 'COMPLETED',
-      slotNumber,
-      joinedAt: new Date(),
-      isDisqualified: false,
-      disqualificationReason: null,
-      oderId: ''
-    };
-    
-    // Add entry fee transaction
-    const entryFeeTransaction: Transaction = {
-      id: `txn-${Date.now()}`,
-      userId,
-      type: 'ENTRY_FEE',
-      amount: -(tournament?.entryFee || 0),
-      description: `Entry fee for ${tournament?.game} Tournament`,
-      referenceId: tournamentId,
-      createdAt: new Date(),
-    };
-    
-    setUserRegistrations(prev => [...prev, newRegistration]);
-    setTransactions(prev => [entryFeeTransaction, ...prev]);
-    setTournaments(prev => prev.map(t => 
-      t.id === tournamentId 
-        ? { ...t, registeredCount: (t.registeredCount || 0) + 1 }
-        : t
-    ));
-    
-    return { slotNumber, paymentId };
+    try {
+      // Create registration in Firebase
+      await addDoc(collection(db, 'registrations'), {
+        tournamentId,
+        userId: oderId,
+        oderId,
+        paymentId,
+        paymentStatus: 'COMPLETED',
+        slotNumber,
+        joinedAt: Timestamp.now(),
+        isDisqualified: false,
+        disqualificationReason: null,
+      });
+
+      // Add entry fee transaction in Firebase
+      await addDoc(collection(db, 'transactions'), {
+        userId: oderId,
+        type: 'ENTRY_FEE',
+        amount: -(tournament.entryFee || 0),
+        description: `Entry fee for ${tournament.game} Tournament`,
+        referenceId: tournamentId,
+        createdAt: Timestamp.now(),
+      });
+
+      // Update tournament registered count
+      await updateDoc(doc(db, 'tournaments', tournamentId), {
+        registeredCount: slotNumber,
+      });
+
+      return { slotNumber, paymentId };
+    } catch (error) {
+      console.error('Error joining tournament:', error);
+      throw error;
+    }
   }, [tournaments]);
 
   const createTournament = useCallback(async (tournament: Omit<Tournament, 'id' | 'createdAt' | 'registeredCount'>) => {
-    const newTournament: Tournament = {
-      ...tournament,
-      id: `tournament-${Date.now()}`,
-      createdAt: new Date(),
-      registeredCount: 0,
-    };
-    setTournaments(prev => [newTournament, ...prev]);
+    try {
+      await addDoc(collection(db, 'tournaments'), {
+        ...tournament,
+        matchDateTime: Timestamp.fromDate(new Date(tournament.matchDateTime)),
+        createdAt: Timestamp.now(),
+        registeredCount: 0,
+      });
+    } catch (error) {
+      console.error('Error creating tournament:', error);
+      throw error;
+    }
   }, []);
 
   const deleteTournament = useCallback(async (tournamentId: string) => {
-    setTournaments(prev => prev.filter(t => t.id !== tournamentId));
+    try {
+      await deleteDoc(doc(db, 'tournaments', tournamentId));
+    } catch (error) {
+      console.error('Error deleting tournament:', error);
+      throw error;
+    }
   }, []);
 
   const updateTournamentRoom = useCallback(async (tournamentId: string, roomId: string, roomPassword: string) => {
-    setTournaments(prev => prev.map(t => 
-      t.id === tournamentId 
-        ? { ...t, roomId, roomPassword, roomReleased: true }
-        : t
-    ));
+    try {
+      await updateDoc(doc(db, 'tournaments', tournamentId), {
+        roomId,
+        roomPassword,
+        roomReleased: true,
+      });
+    } catch (error) {
+      console.error('Error updating tournament room:', error);
+      throw error;
+    }
   }, []);
 
   const updateTournamentStatus = useCallback(async (tournamentId: string, status: TournamentStatus) => {
-    setTournaments(prev => prev.map(t => 
-      t.id === tournamentId ? { ...t, status } : t
-    ));
+    try {
+      await updateDoc(doc(db, 'tournaments', tournamentId), { status });
+    } catch (error) {
+      console.error('Error updating tournament status:', error);
+      throw error;
+    }
   }, []);
 
   const addTournamentResult = useCallback(async (
     tournamentId: string, 
-    userId: string, 
+    oderId: string, 
     position: number, 
     prizeAmount: number, 
     kills: number
   ) => {
-    const newTransaction: Transaction = {
-      id: `txn-${Date.now()}`,
-      userId,
-      type: 'PRIZE',
-      amount: prizeAmount,
-      description: `Position #${position} prize`,
-      referenceId: tournamentId,
-      createdAt: new Date(),
-    };
-    setTransactions(prev => [newTransaction, ...prev]);
-    
-    // Update user winning credits
-    setAllUsers(prev => prev.map(u => 
-      u.id === userId ? { ...u, winningCredits: u.winningCredits + prizeAmount } : u
-    ));
+    try {
+      // Add match result
+      await addDoc(collection(db, 'matchResults'), {
+        tournamentId,
+        userId: oderId,
+        position,
+        kills,
+        prizeAmount,
+        createdAt: Timestamp.now(),
+      });
+
+      // Add prize transaction
+      await addDoc(collection(db, 'transactions'), {
+        userId: oderId,
+        type: 'PRIZE',
+        amount: prizeAmount,
+        description: `Position #${position} prize`,
+        referenceId: tournamentId,
+        createdAt: Timestamp.now(),
+      });
+
+      // Update user winning credits
+      const userDoc = await getDoc(doc(db, 'users', oderId));
+      if (userDoc.exists()) {
+        const currentCredits = userDoc.data().winningCredits || 0;
+        await updateDoc(doc(db, 'users', oderId), {
+          winningCredits: currentCredits + prizeAmount,
+          updatedAt: Timestamp.now(),
+        });
+      }
+    } catch (error) {
+      console.error('Error adding tournament result:', error);
+      throw error;
+    }
   }, []);
 
   const distributePrizes = useCallback(async (
@@ -470,73 +590,65 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const tournament = tournaments.find(t => t.id === tournamentId);
     if (!tournament) return;
 
-    // Distribute prizes based on position and prize tiers
-    for (const result of results) {
-      let prizeAmount = 0;
-      for (const tier of tournament.prizeTiers) {
-        if (result.position >= tier.rankStart && result.position <= tier.rankEnd) {
-          prizeAmount = tier.prizeAmount;
-          break;
+    try {
+      for (const result of results) {
+        let prizeAmount = 0;
+        for (const tier of tournament.prizeTiers) {
+          if (result.position >= tier.rankStart && result.position <= tier.rankEnd) {
+            prizeAmount = tier.prizeAmount;
+            break;
+          }
         }
-      }
 
-      // Create match result record
-      const matchResult: MatchResult = {
-        id: `result-${Date.now()}-${result.oderId}`,
-        tournamentId,
-        userId: result.oderId,
-        position: result.position,
-        kills: result.kills,
-        prizeAmount,
-        createdAt: new Date(),
-      };
-      setMatchResults(prev => [matchResult, ...prev]);
-
-      if (prizeAmount > 0) {
-        const newTransaction: Transaction = {
-          id: `txn-${Date.now()}-${result.oderId}`,
+        // Create match result in Firebase
+        await addDoc(collection(db, 'matchResults'), {
+          tournamentId,
           userId: result.oderId,
-          type: 'PRIZE',
-          amount: prizeAmount,
-          description: `Position #${result.position} prize - ${tournament.game} Tournament`,
-          referenceId: tournamentId,
-          createdAt: new Date(),
-        };
-        
-        setTransactions(prev => [newTransaction, ...prev]);
-        
-        // Add prize to user's winning credits in local state
-        setAllUsers(prev => prev.map(u => 
-          u.id === result.oderId 
-            ? { ...u, winningCredits: u.winningCredits + prizeAmount } 
-            : u
-        ));
+          position: result.position,
+          kills: result.kills,
+          prizeAmount,
+          createdAt: Timestamp.now(),
+        });
 
-        // Update user's winningCredits in Firebase
-        try {
-          const userDoc = doc(db, 'users', result.oderId);
-          const userSnapshot = await getDocs(collection(db, 'users'));
-          const userData = userSnapshot.docs.find(d => d.id === result.oderId)?.data();
-          const currentCredits = userData?.winningCredits || 0;
-          await updateDoc(userDoc, { 
-            winningCredits: currentCredits + prizeAmount,
-            updatedAt: new Date()
+        if (prizeAmount > 0) {
+          // Add prize transaction
+          await addDoc(collection(db, 'transactions'), {
+            userId: result.oderId,
+            type: 'PRIZE',
+            amount: prizeAmount,
+            description: `Position #${result.position} prize - ${tournament.game} Tournament`,
+            referenceId: tournamentId,
+            createdAt: Timestamp.now(),
           });
-        } catch (error) {
-          console.error('Error updating user winningCredits in Firebase:', error);
+
+          // Update user's winningCredits in Firebase
+          const userDoc = await getDoc(doc(db, 'users', result.oderId));
+          if (userDoc.exists()) {
+            const currentCredits = userDoc.data().winningCredits || 0;
+            await updateDoc(doc(db, 'users', result.oderId), { 
+              winningCredits: currentCredits + prizeAmount,
+              updatedAt: Timestamp.now(),
+            });
+          }
         }
       }
+
+      // Mark tournament as completed
+      await updateDoc(doc(db, 'tournaments', tournamentId), {
+        status: 'COMPLETED',
+      });
+
+      // Refresh users to update leaderboard
+      await fetchAllUsers();
+    } catch (error) {
+      console.error('Error distributing prizes:', error);
+      throw error;
     }
+  }, [tournaments, fetchAllUsers]);
 
-    // Mark tournament as completed
-    setTournaments(prev => prev.map(t => 
-      t.id === tournamentId ? { ...t, status: 'COMPLETED' as const } : t
-    ));
-  }, [tournaments]);
-
-  const updateUserBalance = useCallback((userId: string, winningCredits: number) => {
+  const updateUserBalance = useCallback((oderId: string, winningCredits: number) => {
     setAllUsers(prev => prev.map(u => 
-      u.id === userId ? { ...u, winningCredits } : u
+      u.id === oderId ? { ...u, winningCredits } : u
     ));
   }, []);
 
@@ -550,11 +662,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     console.log('Payment transaction recorded:', newPayment);
   }, []);
 
-  const requestWithdrawal = useCallback(async (userId: string, amount: number, upiId: string) => {
+  const requestWithdrawal = useCallback(async (oderId: string, amount: number, upiId: string) => {
     try {
-      // Add to Firebase for real-time sync
+      // First deduct from user's winning credits (optimistic update)
+      const userDoc = await getDoc(doc(db, 'users', oderId));
+      if (!userDoc.exists()) {
+        throw new Error('User not found');
+      }
+
+      const currentCredits = userDoc.data().winningCredits || 0;
+      if (currentCredits < amount) {
+        throw new Error('Insufficient winning credits');
+      }
+
+      // Add to Firebase withdrawals collection
       await addDoc(collection(db, 'withdrawals'), {
-        oderId: userId,
+        oderId,
         amount,
         status: 'PENDING',
         upiId,
@@ -563,8 +686,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         processedBy: null,
         rejectionReason: null,
       });
+      
       console.log('Withdrawal request created in Firebase');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating withdrawal request:', error);
       throw error;
     }
@@ -572,72 +696,67 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const processWithdrawal = useCallback(async (requestId: string, approved: boolean, reason?: string) => {
     const request = withdrawalRequests.find(r => r.id === requestId);
-    
-    // Update withdrawal status in Firebase
+    if (!request) {
+      console.error('Withdrawal request not found');
+      return;
+    }
+
     try {
+      // Update withdrawal status in Firebase
       await updateDoc(doc(db, 'withdrawals', requestId), {
         status: approved ? 'APPROVED' : 'REJECTED',
         processedAt: Timestamp.now(),
+        processedBy: user?.id || null,
         rejectionReason: reason || null,
       });
       console.log('Withdrawal status updated in Firebase');
-    } catch (error) {
-      console.error('Error updating withdrawal in Firebase:', error);
-    }
 
-    // If approved, deduct from user's winning credits and add transaction
-    if (approved && request) {
-      // Update local state
-      setAllUsers(prev => prev.map(u => 
-        u.id === request.oderId 
-          ? { ...u, winningCredits: Math.max(0, u.winningCredits - request.amount) } 
-          : u
-      ));
-
-      // Also update Firebase to persist the deduction
-      try {
-        const userDoc = doc(db, 'users', request.oderId);
-        const userSnapshot = await getDoc(userDoc);
-        if (userSnapshot.exists()) {
-          const userData = userSnapshot.data();
-          const currentCredits = userData?.winningCredits || 0;
+      // If approved, deduct from user's winning credits and add transaction
+      if (approved) {
+        const userDoc = await getDoc(doc(db, 'users', request.oderId));
+        if (userDoc.exists()) {
+          const currentCredits = userDoc.data().winningCredits || 0;
           const newCredits = Math.max(0, currentCredits - request.amount);
-          await updateDoc(userDoc, { 
+          await updateDoc(doc(db, 'users', request.oderId), { 
             winningCredits: newCredits,
-            updatedAt: new Date()
+            updatedAt: Timestamp.now(),
           });
           console.log(`Deducted ₹${request.amount} from user ${request.oderId}. New balance: ₹${newCredits}`);
         }
-      } catch (error) {
-        console.error('Error updating user winningCredits in Firebase:', error);
-      }
 
-      const withdrawalTransaction: Transaction = {
-        id: `txn-wd-${Date.now()}`,
-        userId: request.oderId,
-        type: 'WITHDRAWAL',
-        amount: -request.amount,
-        description: `Withdrawal to UPI: ${request.upiId}`,
-        referenceId: requestId,
-        createdAt: new Date(),
-      };
-      setTransactions(prev => [withdrawalTransaction, ...prev]);
+        // Add withdrawal transaction
+        await addDoc(collection(db, 'transactions'), {
+          userId: request.oderId,
+          type: 'WITHDRAWAL',
+          amount: -request.amount,
+          description: `Withdrawal to UPI: ${request.upiId}`,
+          referenceId: requestId,
+          createdAt: Timestamp.now(),
+        });
+      }
+    } catch (error) {
+      console.error('Error processing withdrawal:', error);
+      throw error;
     }
-  }, [withdrawalRequests]);
+  }, [withdrawalRequests, user?.id]);
 
   const disqualifyPlayer = useCallback(async (registrationId: string, reason: string) => {
-    setUserRegistrations(prev => prev.map(r => 
-      r.id === registrationId 
-        ? { ...r, isDisqualified: true, disqualificationReason: reason }
-        : r
-    ));
+    try {
+      await updateDoc(doc(db, 'registrations', registrationId), {
+        isDisqualified: true,
+        disqualificationReason: reason,
+      });
+    } catch (error) {
+      console.error('Error disqualifying player:', error);
+      throw error;
+    }
   }, []);
 
-  const banUser = useCallback(async (userId: string) => {
+  const banUser = useCallback(async (oderId: string) => {
     try {
-      await updateDoc(doc(db, 'users', userId), { isBanned: true });
+      await updateDoc(doc(db, 'users', oderId), { isBanned: true });
       setAllUsers(prev => prev.map(u => 
-        u.id === userId ? { ...u, isBanned: true } : u
+        u.id === oderId ? { ...u, isBanned: true } : u
       ));
     } catch (error) {
       console.error('Error banning user:', error);
@@ -645,10 +764,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const deleteUser = useCallback(async (userId: string) => {
+  const deleteUser = useCallback(async (oderId: string) => {
     try {
-      await deleteDoc(doc(db, 'users', userId));
-      setAllUsers(prev => prev.filter(u => u.id !== userId));
+      await deleteDoc(doc(db, 'users', oderId));
+      setAllUsers(prev => prev.filter(u => u.id !== oderId));
     } catch (error) {
       console.error('Error deleting user:', error);
       throw error;
@@ -656,7 +775,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const getTournamentRegistrations = useCallback(async (tournamentId: string) => {
-    return mockRegistrations.filter(r => r.tournamentId === tournamentId);
+    try {
+      const snapshot = await getDocs(query(
+        collection(db, 'registrations'),
+        where('tournamentId', '==', tournamentId)
+      ));
+      return snapshot.docs.map(docSnap => {
+        const d = docSnap.data();
+        return {
+          id: docSnap.id,
+          tournamentId: d.tournamentId,
+          oderId: d.oderId || '',
+          userId: d.userId,
+          paymentId: d.paymentId,
+          paymentStatus: d.paymentStatus,
+          slotNumber: d.slotNumber,
+          joinedAt: toDate(d.joinedAt),
+          isDisqualified: d.isDisqualified || false,
+          disqualificationReason: d.disqualificationReason || null,
+        } as TournamentRegistration;
+      });
+    } catch (error) {
+      console.error('Error fetching tournament registrations:', error);
+      return [];
+    }
   }, []);
 
   return (
