@@ -6,7 +6,7 @@ import {
   signOut,
   User as FirebaseUser 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { User } from '@/types';
 
@@ -106,6 +106,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     return () => unsubscribe();
   }, [buildFallbackUser, fetchUserProfile]);
+
+  // Keep user profile in sync (balances, admin flag, bans, etc.)
+  useEffect(() => {
+    if (!firebaseUser?.uid) return;
+
+    const userRef = doc(db, 'users', firebaseUser.uid);
+
+    const unsubscribe = onSnapshot(
+      userRef,
+      (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+
+        setUser({
+          id: firebaseUser.uid,
+          email: data.email || firebaseUser.email || '',
+          phone: data.phone || '',
+          displayName:
+            data.displayName || firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'Player'),
+          walletBalance: data.walletBalance || 0,
+          winningCredits: data.winningCredits || 0,
+          isBanned: data.isBanned || false,
+          isAdmin: data.isAdmin || false,
+          createdAt: data.createdAt?.toDate?.() || new Date(),
+          updatedAt: data.updatedAt?.toDate?.() || new Date(),
+        });
+      },
+      (error) => {
+        console.warn('User profile listener error:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [firebaseUser]);
 
   const login = useCallback(async (email: string, password: string) => {
     setIsLoading(true);

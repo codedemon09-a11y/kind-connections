@@ -1,7 +1,20 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
-import { 
-  collection, getDocs, doc, updateDoc, deleteDoc, getDoc, addDoc, setDoc,
-  onSnapshot, query, orderBy, where, Timestamp, writeBatch
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+  getDoc,
+  addDoc,
+  setDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  where,
+  Timestamp,
+  writeBatch,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -33,7 +46,7 @@ interface DataContextType {
   fetchTransactions: (userId: string) => Promise<void>;
   fetchAllUsers: () => Promise<void>;
   fetchMatchHistory: (userId: string) => Promise<void>;
-  joinTournament: (tournamentId: string, userId: string, paymentId?: string) => Promise<{ slotNumber: number; paymentId: string }>;
+  joinTournament: (tournamentId: string, userId: string, paymentId?: string, paymentMethod?: 'razorpay' | 'wallet') => Promise<{ slotNumber: number; paymentId: string }>;
   createTournament: (tournament: Omit<Tournament, 'id' | 'createdAt' | 'registeredCount'>) => Promise<void>;
   deleteTournament: (tournamentId: string) => Promise<void>;
   updateTournamentRoom: (tournamentId: string, roomId: string, roomPassword: string) => Promise<void>;
@@ -47,7 +60,7 @@ interface DataContextType {
   deleteUser: (userId: string) => Promise<void>;
   getTournamentRegistrations: (tournamentId: string) => Promise<TournamentRegistration[]>;
   updateUserBalance: (userId: string, winningCredits: number) => void;
-  addPaymentTransaction: (payment: Omit<PaymentTransaction, 'id' | 'createdAt'>) => void;
+  addPaymentTransaction: (payment: Omit<PaymentTransaction, 'id' | 'createdAt'>) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -69,7 +82,7 @@ const toDate = (value: any): Date => {
 };
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user, isAdmin, isAuthenticated } = useAuth();
+  const { user, isAdmin, isAuthenticated, setUser } = useAuth();
 
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [userRegistrations, setUserRegistrations] = useState<TournamentRegistration[]>([]);
@@ -452,48 +465,92 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  const joinTournament = useCallback(async (tournamentId: string, oderId: string, paymentIdInput?: string) => {
-    const tournament = tournaments.find(t => t.id === tournamentId);
-    if (!tournament) throw new Error('Tournament not found');
+  const joinTournament = useCallback(
+    async (
+      tournamentId: string,
+      oderId: string,
+      paymentIdInput?: string,
+      paymentMethod: 'razorpay' | 'wallet' = 'razorpay'
+    ) => {
+      const paymentId = paymentIdInput || `pay_${Date.now()}`;
 
-    const slotNumber = (tournament.registeredCount || 0) + 1;
-    const paymentId = paymentIdInput || `pay_${Date.now()}`;
-    
-    try {
-      // Create registration in Firebase
-      await addDoc(collection(db, 'registrations'), {
-        tournamentId,
-        userId: oderId,
-        oderId,
-        paymentId,
-        paymentStatus: 'COMPLETED',
-        slotNumber,
-        joinedAt: Timestamp.now(),
-        isDisqualified: false,
-        disqualificationReason: null,
-      });
+      try {
+        const result = await runTransaction(db, async (tx) => {
+          const tournamentRef = doc(db, 'tournaments', tournamentId);
+          const tournamentSnap = await tx.get(tournamentRef);
 
-      // Add entry fee transaction in Firebase
-      await addDoc(collection(db, 'transactions'), {
-        userId: oderId,
-        type: 'ENTRY_FEE',
-        amount: -(tournament.entryFee || 0),
-        description: `Entry fee for ${tournament.game} Tournament`,
-        referenceId: tournamentId,
-        createdAt: Timestamp.now(),
-      });
+          if (!tournamentSnap.exists()) {
+            throw new Error('Tournament not found');
+          }
 
-      // Update tournament registered count
-      await updateDoc(doc(db, 'tournaments', tournamentId), {
-        registeredCount: slotNumber,
-      });
+          const t = tournamentSnap.data();
+          const entryFee = Number(t.entryFee || 0);
+          const maxPlayers = Number(t.maxPlayers || 0);
+          const currentCount = Number(t.registeredCount || 0);
+          const nextSlot = currentCount + 1;
 
-      return { slotNumber, paymentId };
-    } catch (error) {
-      console.error('Error joining tournament:', error);
-      throw error;
-    }
-  }, [tournaments]);
+          if (maxPlayers > 0 && nextSlot > maxPlayers) {
+            throw new Error('Tournament is full');
+          }
+
+          // Wallet payment: atomically deduct from wallet balance
+          if (paymentMethod === 'wallet') {
+            const userRef = doc(db, 'users', oderId);
+            const userSnap = await tx.get(userRef);
+            if (!userSnap.exists()) {
+              throw new Error('User not found');
+            }
+
+            const currentWallet = Number(userSnap.data().walletBalance || 0);
+            if (currentWallet < entryFee) {
+              throw new Error('Insufficient wallet balance');
+            }
+
+            tx.update(userRef, {
+              walletBalance: Math.max(0, currentWallet - entryFee),
+              updatedAt: Timestamp.now(),
+            });
+          }
+
+          // Create registration
+          const registrationRef = doc(collection(db, 'registrations'));
+          tx.set(registrationRef, {
+            tournamentId,
+            userId: oderId,
+            oderId,
+            paymentId,
+            paymentStatus: 'COMPLETED',
+            slotNumber: nextSlot,
+            joinedAt: Timestamp.now(),
+            isDisqualified: false,
+            disqualificationReason: null,
+          });
+
+          // Add entry fee transaction (ledger)
+          const txnRef = doc(collection(db, 'transactions'));
+          tx.set(txnRef, {
+            userId: oderId,
+            type: 'ENTRY_FEE',
+            amount: -entryFee,
+            description: `Entry fee for ${t.game} Tournament`,
+            referenceId: tournamentId,
+            createdAt: Timestamp.now(),
+          });
+
+          // Update tournament count
+          tx.update(tournamentRef, { registeredCount: nextSlot });
+
+          return { slotNumber: nextSlot, paymentId };
+        });
+
+        return result;
+      } catch (error) {
+        console.error('Error joining tournament:', error);
+        throw error;
+      }
+    },
+    []
+  );
 
   const createTournament = useCallback(async (tournament: Omit<Tournament, 'id' | 'createdAt' | 'registeredCount'>) => {
     try {
@@ -652,103 +709,185 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     ));
   }, []);
 
-  const addPaymentTransaction = useCallback((payment: Omit<PaymentTransaction, 'id' | 'createdAt'>) => {
-    const newPayment: PaymentTransaction = {
-      ...payment,
-      id: `payment_${Date.now()}`,
-      createdAt: new Date(),
-    };
-    setPaymentTransactions(prev => [newPayment, ...prev]);
-    console.log('Payment transaction recorded:', newPayment);
-  }, []);
-
-  const requestWithdrawal = useCallback(async (oderId: string, amount: number, upiId: string) => {
+  const addPaymentTransaction = useCallback(async (payment: Omit<PaymentTransaction, 'id' | 'createdAt'>) => {
     try {
-      // First deduct from user's winning credits (optimistic update)
-      const userDoc = await getDoc(doc(db, 'users', oderId));
-      if (!userDoc.exists()) {
-        throw new Error('User not found');
-      }
-
-      const currentCredits = userDoc.data().winningCredits || 0;
-      if (currentCredits < amount) {
-        throw new Error('Insufficient winning credits');
-      }
-
-      // Add to Firebase withdrawals collection
-      await addDoc(collection(db, 'withdrawals'), {
-        oderId,
-        amount,
-        status: 'PENDING',
-        upiId,
+      // Persist to Firebase for audit/history
+      await addDoc(collection(db, 'paymentTransactions'), {
+        ...payment,
         createdAt: Timestamp.now(),
-        processedAt: null,
-        processedBy: null,
-        rejectionReason: null,
       });
-      
-      console.log('Withdrawal request created in Firebase');
-    } catch (error: any) {
-      console.error('Error creating withdrawal request:', error);
+
+      // Also keep a local list (useful for future UI)
+      const newPayment: PaymentTransaction = {
+        ...payment,
+        id: `payment_${Date.now()}`,
+        createdAt: new Date(),
+      };
+      setPaymentTransactions(prev => [newPayment, ...prev]);
+      console.log('Payment transaction recorded:', newPayment);
+    } catch (error) {
+      console.error('Error recording payment transaction:', error);
       throw error;
     }
   }, []);
 
-  const processWithdrawal = useCallback(async (requestId: string, approved: boolean, reason?: string) => {
-    const request = withdrawalRequests.find(r => r.id === requestId);
-    if (!request) {
-      console.error('Withdrawal request not found');
-      return;
-    }
+  const requestWithdrawal = useCallback(
+    async (oderId: string, amount: number, upiId: string) => {
+      try {
+        const { newCredits } = await runTransaction(db, async (tx) => {
+          const userRef = doc(db, 'users', oderId);
+          const userSnap = await tx.get(userRef);
+          if (!userSnap.exists()) {
+            throw new Error('User not found');
+          }
 
-    try {
-      // Update withdrawal status in Firebase
-      await updateDoc(doc(db, 'withdrawals', requestId), {
-        status: approved ? 'APPROVED' : 'REJECTED',
-        processedAt: Timestamp.now(),
-        processedBy: user?.id || null,
-        rejectionReason: reason || null,
-      });
-      console.log('Withdrawal status updated in Firebase');
+          const currentCredits = Number(userSnap.data().winningCredits || 0);
+          if (currentCredits < amount) {
+            throw new Error('Insufficient winning credits');
+          }
 
-      // If approved, deduct from user's winning credits and add transaction
-      if (approved) {
-        const userDoc = await getDoc(doc(db, 'users', request.oderId));
-        if (userDoc.exists()) {
-          const currentCredits = userDoc.data().winningCredits || 0;
-          const newCredits = Math.max(0, currentCredits - request.amount);
-          
-          // Update Firebase
-          await updateDoc(doc(db, 'users', request.oderId), { 
-            winningCredits: newCredits,
+          const updatedCredits = Math.max(0, currentCredits - amount);
+
+          // Create withdrawal with known ID so we can reference it from the transaction ledger
+          const withdrawalRef = doc(collection(db, 'withdrawals'));
+          tx.set(withdrawalRef, {
+            oderId,
+            amount,
+            status: 'PENDING',
+            upiId,
+            createdAt: Timestamp.now(),
+            processedAt: null,
+            processedBy: null,
+            rejectionReason: null,
+            balanceDeducted: true,
+            balanceRefunded: false,
+          });
+
+          // Deduct immediately (so the user can't re-request the same money)
+          tx.update(userRef, {
+            winningCredits: updatedCredits,
             updatedAt: Timestamp.now(),
           });
-          console.log(`Deducted ₹${request.amount} from user ${request.oderId}. New balance: ₹${newCredits}`);
-          
-          // Update local state immediately
-          setAllUsers(prev => prev.map(u => 
-            u.id === request.oderId ? { ...u, winningCredits: newCredits } : u
-          ));
-        }
 
-        // Add withdrawal transaction
-        await addDoc(collection(db, 'transactions'), {
-          userId: request.oderId,
-          type: 'WITHDRAWAL',
-          amount: -request.amount,
-          description: `Withdrawal to UPI: ${request.upiId}`,
-          referenceId: requestId,
-          createdAt: Timestamp.now(),
+          // Ledger entry shown in user's wallet history
+          const txnRef = doc(collection(db, 'transactions'));
+          tx.set(txnRef, {
+            userId: oderId,
+            type: 'WITHDRAWAL',
+            amount: -amount,
+            description: `Withdrawal request to UPI: ${upiId}`,
+            referenceId: withdrawalRef.id,
+            createdAt: Timestamp.now(),
+          });
+
+          return { newCredits: updatedCredits, withdrawalId: withdrawalRef.id };
         });
+
+        // Update local user state immediately (AuthContext will also stay synced via onSnapshot)
+        setUser((prev) => (prev?.id === oderId ? { ...prev, winningCredits: newCredits } : prev));
+        setAllUsers((prev) => prev.map((u) => (u.id === oderId ? { ...u, winningCredits: newCredits } : u)));
+
+        console.log('Withdrawal request created & balance deducted');
+      } catch (error: any) {
+        console.error('Error creating withdrawal request:', error);
+        throw error;
       }
-      
-      // Refresh users to sync with Firebase
-      await fetchAllUsers();
-    } catch (error) {
-      console.error('Error processing withdrawal:', error);
-      throw error;
-    }
-  }, [withdrawalRequests, user?.id, fetchAllUsers]);
+    },
+    [setUser]
+  );
+
+  const processWithdrawal = useCallback(
+    async (requestId: string, approved: boolean, reason?: string) => {
+      const request = withdrawalRequests.find((r) => r.id === requestId);
+      if (!request) {
+        console.error('Withdrawal request not found');
+        return;
+      }
+
+      try {
+        await runTransaction(db, async (tx) => {
+          const withdrawalRef = doc(db, 'withdrawals', requestId);
+          const withdrawalSnap = await tx.get(withdrawalRef);
+          const w = withdrawalSnap.exists() ? withdrawalSnap.data() : {};
+
+          const balanceDeducted = w.balanceDeducted === true;
+          const balanceRefunded = w.balanceRefunded === true;
+
+          // Always update status first
+          tx.update(withdrawalRef, {
+            status: approved ? 'APPROVED' : 'REJECTED',
+            processedAt: Timestamp.now(),
+            processedBy: user?.id || null,
+            rejectionReason: approved ? null : reason || null,
+          });
+
+          const userRef = doc(db, 'users', request.oderId);
+
+          // Backwards compatibility: old withdrawals might not have deducted balance at request time
+          if (approved && !balanceDeducted) {
+            const userSnap = await tx.get(userRef);
+            if (!userSnap.exists()) throw new Error('User not found');
+
+            const currentCredits = Number(userSnap.data().winningCredits || 0);
+            const newCredits = Math.max(0, currentCredits - request.amount);
+
+            tx.update(userRef, {
+              winningCredits: newCredits,
+              updatedAt: Timestamp.now(),
+            });
+
+            // Create ledger entry for legacy records
+            const txnRef = doc(collection(db, 'transactions'));
+            tx.set(txnRef, {
+              userId: request.oderId,
+              type: 'WITHDRAWAL',
+              amount: -request.amount,
+              description: `Withdrawal request to UPI: ${request.upiId}`,
+              referenceId: requestId,
+              createdAt: Timestamp.now(),
+            });
+
+            tx.update(withdrawalRef, { balanceDeducted: true });
+          }
+
+          // If rejected and balance was already held/deducted, refund it once
+          if (!approved && balanceDeducted && !balanceRefunded) {
+            const userSnap = await tx.get(userRef);
+            if (!userSnap.exists()) throw new Error('User not found');
+
+            const currentCredits = Number(userSnap.data().winningCredits || 0);
+            const newCredits = currentCredits + request.amount;
+
+            tx.update(userRef, {
+              winningCredits: newCredits,
+              updatedAt: Timestamp.now(),
+            });
+
+            const refundTxnRef = doc(collection(db, 'transactions'));
+            tx.set(refundTxnRef, {
+              userId: request.oderId,
+              type: 'REFUND',
+              amount: request.amount,
+              description: `Refund for rejected withdrawal to UPI: ${request.upiId}`,
+              referenceId: requestId,
+              createdAt: Timestamp.now(),
+            });
+
+            tx.update(withdrawalRef, {
+              balanceRefunded: true,
+            });
+          }
+        });
+
+        // Keep admin tables in sync (AuthContext user doc is real-time)
+        await fetchAllUsers();
+      } catch (error) {
+        console.error('Error processing withdrawal:', error);
+        throw error;
+      }
+    },
+    [withdrawalRequests, user?.id, fetchAllUsers]
+  );
 
   const disqualifyPlayer = useCallback(async (registrationId: string, reason: string) => {
     try {
