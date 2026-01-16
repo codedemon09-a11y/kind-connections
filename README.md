@@ -1,73 +1,82 @@
-# Welcome to your Lovable project
+# BattleArena - Gaming Tournament Platform
 
-## Project info
+A competitive esports tournament platform for BGMI and Free Fire games where players can join tournaments and win real cash prizes.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+- **Tournament Management**: Create and manage gaming tournaments
+- **Real-time Leaderboards**: Track player rankings and stats
+- **Wallet System**: Manage deposits, withdrawals, and winnings
+- **Payment Integration**: Razorpay integration for secure payments
+- **Admin Dashboard**: Full admin panel for tournament and user management
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Frontend**: React, TypeScript, Vite
+- **Styling**: Tailwind CSS, shadcn/ui
+- **Backend**: Firebase (Auth, Firestore)
+- **Payments**: Razorpay
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js 18+ and npm
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to project directory
+cd battlearena
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Firebase Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com)
+2. Enable Authentication (Email/Password)
+3. Create a Firestore database
+4. Update `src/lib/firebase.ts` with your config
+5. Set up Firestore security rules (see `docs/FIREBASE_SETUP.md`)
 
-**Use GitHub Codespaces**
+### Razorpay Setup
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. Create a Razorpay account at [Razorpay Dashboard](https://dashboard.razorpay.com)
+2. Get your API keys (test mode for development)
+3. Update `src/lib/payment.ts` with your Key ID
+4. See `docs/RAZORPAY_SETUP.md` for detailed instructions
 
-## What technologies are used for this project?
+## Project Structure
 
-This project is built with:
+```
+src/
+├── components/     # Reusable UI components
+├── contexts/       # React context providers
+├── hooks/          # Custom React hooks
+├── lib/            # Utility functions and configs
+├── pages/          # Page components
+│   └── admin/      # Admin dashboard pages
+└── types/          # TypeScript type definitions
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Deployment
 
-## How can I deploy this project?
+Build the production version:
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+```sh
+npm run build
+```
 
-## Can I connect a custom domain to my Lovable project?
+The output will be in the `dist` folder, ready for deployment to any static hosting service.
 
-Yes, you can!
+## License
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT License
