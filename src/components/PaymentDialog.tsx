@@ -7,20 +7,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/contexts/AuthContext';
-import { Tournament, calculateTotalPrizePool } from '@/types';
+import { Tournament } from '@/types';
 import { razorpayConfig } from '@/lib/payment';
-import { 
-  Wallet, 
+import {
+  Wallet,
   CreditCard,
-  IndianRupee, 
-  CheckCircle, 
+  IndianRupee,
+  CheckCircle,
   Loader2,
   AlertCircle,
-  Shield
+  Shield,
 } from 'lucide-react';
 
 interface PaymentDialogProps {
@@ -55,6 +54,9 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   const entryFee = tournament.entryFee;
   const hasEnoughBalance = walletBalance >= entryFee;
 
+  const razorpayKeyId = razorpayConfig.keyId;
+  const razorpayConfigured = !!razorpayKeyId && !razorpayKeyId.startsWith('YOUR_');
+
   // Check if Razorpay is loaded
   useEffect(() => {
     const checkRazorpay = () => {
@@ -62,14 +64,27 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         setRazorpayLoaded(true);
       }
     };
-    
+
     checkRazorpay();
     // Check again after a delay in case script loads late
     const timer = setTimeout(checkRazorpay, 1000);
     return () => clearTimeout(timer);
   }, [open]);
 
+  // If Razorpay isn't configured, default to wallet when possible
+  useEffect(() => {
+    if (!open) return;
+    if (!razorpayConfigured && hasEnoughBalance) {
+      setPaymentMethod('wallet');
+    }
+  }, [open, razorpayConfigured, hasEnoughBalance]);
+
   const handleRazorpayPayment = () => {
+    if (!razorpayConfigured) {
+      setError('Razorpay is not configured. Please contact admin or use Wallet.');
+      return;
+    }
+
     if (!razorpayLoaded) {
       setError('Payment gateway not loaded. Please refresh the page and try again.');
       return;
@@ -85,7 +100,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     setError(null);
 
     const options = {
-      key: razorpayConfig.keyId,
+      key: razorpayKeyId,
       amount: entryFee * 100, // Razorpay expects amount in paise
       currency: 'INR',
       name: 'BattleArena',
@@ -101,10 +116,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         oderId: user.id,
         purpose: 'Tournament Entry Fee',
       },
-      theme: {
-        color: '#00FFE5',
-        backdrop_color: 'rgba(0, 0, 0, 0.8)',
-      },
       handler: function (response: {
         razorpay_payment_id: string;
         razorpay_order_id?: string;
@@ -112,7 +123,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
       }) {
         // Payment successful
         console.log('Razorpay Payment Success:', response);
-        
+
         setPaymentStep('success');
         setIsProcessing(false);
 
@@ -146,7 +157,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
     try {
       const razorpay = new window.Razorpay(options);
-      
+
       razorpay.on('payment.failed', function (response: {
         error: {
           code: string;
@@ -165,7 +176,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         setPaymentStep('select');
         setError(response.error.description || 'Payment failed. Please try again.');
       });
-      
+
       razorpay.open();
     } catch (err) {
       console.error('Razorpay initialization error:', err);
@@ -209,16 +220,19 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     }
   };
 
-  const handleClose = () => {
-    if (!isProcessing) {
-      onOpenChange(false);
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (isProcessing) return;
+
+    onOpenChange(nextOpen);
+
+    if (!nextOpen) {
       setPaymentStep('select');
       setError(null);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         {paymentStep === 'select' && (
           <>
@@ -295,11 +309,11 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 </RadioGroup>
               </div>
 
-              {/* Razorpay Loading Warning */}
-              {paymentMethod === 'razorpay' && !razorpayLoaded && (
+              {/* Razorpay Loading / Config Warning */}
+              {paymentMethod === 'razorpay' && (!razorpayConfigured || !razorpayLoaded) && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 text-warning text-sm">
                   <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-                  Loading payment gateway...
+                  {!razorpayConfigured ? 'Razorpay is not configured by admin.' : 'Loading payment gateway...'}
                 </div>
               )}
 
@@ -322,7 +336,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 className="w-full"
                 size="lg"
                 onClick={handlePayment}
-                disabled={isProcessing || (paymentMethod === 'razorpay' && !razorpayLoaded)}
+                disabled={isProcessing || (paymentMethod === 'razorpay' && (!razorpayLoaded || !razorpayConfigured))}
               >
                 {isProcessing ? (
                   <>

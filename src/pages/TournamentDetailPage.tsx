@@ -82,23 +82,21 @@ const TournamentDetailPage: React.FC = () => {
   const handlePaymentSuccess = async (paymentId: string, orderId: string, method: string) => {
     setShowPaymentDialog(false);
     setIsJoining(true);
-    
+
     try {
       // Record the payment transaction
-      if (addPaymentTransaction) {
-        addPaymentTransaction({
-          oderId: user!.id,
-          amount: tournament.entryFee,
-          paymentId,
-          orderId,
-          method: method as 'razorpay' | 'wallet',
-          tournamentId: tournament.id,
-          status: 'SUCCESS',
-        });
-      }
+      await addPaymentTransaction({
+        oderId: user!.id,
+        amount: tournament.entryFee,
+        paymentId,
+        orderId,
+        method: method as 'razorpay' | 'wallet',
+        tournamentId: tournament.id,
+        status: 'SUCCESS',
+      });
 
-      // Join the tournament
-      const result = await joinTournament(tournament.id, user!.id, paymentId);
+      // Join the tournament (wallet method will deduct wallet balance atomically)
+      const result = await joinTournament(tournament.id, user!.id, paymentId, method as 'razorpay' | 'wallet');
       
       toast.success(
         <div className="space-y-1">
