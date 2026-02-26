@@ -603,35 +603,40 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     kills: number
   ) => {
     try {
-      // Add match result
-      await addDoc(collection(db, 'matchResults'), {
-        tournamentId,
-        userId: oderId,
-        position,
-        kills,
-        prizeAmount,
-        createdAt: Timestamp.now(),
-      });
-
-      // Add prize transaction
-      await addDoc(collection(db, 'transactions'), {
-        userId: oderId,
-        type: 'PRIZE',
-        amount: prizeAmount,
-        description: `Position #${position} prize`,
-        referenceId: tournamentId,
-        createdAt: Timestamp.now(),
-      });
-
-      // Update user winning credits
-      const userDoc = await getDoc(doc(db, 'users', oderId));
-      if (userDoc.exists()) {
-        const currentCredits = userDoc.data().winningCredits || 0;
-        await updateDoc(doc(db, 'users', oderId), {
-          winningCredits: currentCredits + prizeAmount,
-          updatedAt: Timestamp.now(),
+      await runTransaction(db, async (tx) => {
+        // Add match result
+        const resultRef = doc(collection(db, 'matchResults'));
+        tx.set(resultRef, {
+          tournamentId,
+          userId: oderId,
+          position,
+          kills,
+          prizeAmount,
+          createdAt: Timestamp.now(),
         });
-      }
+
+        // Add prize transaction
+        const txnRef = doc(collection(db, 'transactions'));
+        tx.set(txnRef, {
+          userId: oderId,
+          type: 'PRIZE',
+          amount: prizeAmount,
+          description: `Position #${position} prize`,
+          referenceId: tournamentId,
+          createdAt: Timestamp.now(),
+        });
+
+        // Atomically update user winning credits
+        const userRef = doc(db, 'users', oderId);
+        const userSnap = await tx.get(userRef);
+        if (userSnap.exists()) {
+          const currentCredits = userSnap.data().winningCredits || 0;
+          tx.update(userRef, {
+            winningCredits: currentCredits + prizeAmount,
+            updatedAt: Timestamp.now(),
+          });
+        }
+      });
     } catch (error) {
       console.error('Error adding tournament result:', error);
       throw error;
@@ -655,37 +660,43 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         }
 
-        // Create match result in Firebase
-        await addDoc(collection(db, 'matchResults'), {
-          tournamentId,
-          userId: result.oderId,
-          position: result.position,
-          kills: result.kills,
-          prizeAmount,
-          createdAt: Timestamp.now(),
-        });
-
-        if (prizeAmount > 0) {
-          // Add prize transaction
-          await addDoc(collection(db, 'transactions'), {
+        // Use runTransaction for atomic credit updates
+        await runTransaction(db, async (tx) => {
+          // Create match result
+          const resultRef = doc(collection(db, 'matchResults'));
+          tx.set(resultRef, {
+            tournamentId,
             userId: result.oderId,
-            type: 'PRIZE',
-            amount: prizeAmount,
-            description: `Position #${result.position} prize - ${tournament.game} Tournament`,
-            referenceId: tournamentId,
+            position: result.position,
+            kills: result.kills,
+            prizeAmount,
             createdAt: Timestamp.now(),
           });
 
-          // Update user's winningCredits in Firebase
-          const userDoc = await getDoc(doc(db, 'users', result.oderId));
-          if (userDoc.exists()) {
-            const currentCredits = userDoc.data().winningCredits || 0;
-            await updateDoc(doc(db, 'users', result.oderId), { 
-              winningCredits: currentCredits + prizeAmount,
-              updatedAt: Timestamp.now(),
+          if (prizeAmount > 0) {
+            // Add prize transaction
+            const txnRef = doc(collection(db, 'transactions'));
+            tx.set(txnRef, {
+              userId: result.oderId,
+              type: 'PRIZE',
+              amount: prizeAmount,
+              description: `Position #${result.position} prize - ${tournament.game} Tournament`,
+              referenceId: tournamentId,
+              createdAt: Timestamp.now(),
             });
+
+            // Atomically update user's winningCredits
+            const userRef = doc(db, 'users', result.oderId);
+            const userSnap = await tx.get(userRef);
+            if (userSnap.exists()) {
+              const currentCredits = userSnap.data().winningCredits || 0;
+              tx.update(userRef, { 
+                winningCredits: currentCredits + prizeAmount,
+                updatedAt: Timestamp.now(),
+              });
+            }
           }
-        }
+        });
       }
 
       // Mark tournament as completed

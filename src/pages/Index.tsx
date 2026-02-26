@@ -28,6 +28,7 @@ import {
 import heroBanner from '@/assets/hero-banner.jpg';
 import bgmiGame from '@/assets/bgmi-game.jpg';
 import freefireGame from '@/assets/freefire-game.jpg';
+import codGame from '@/assets/cod-game.jpg';
 import trophyImage from '@/assets/trophy.jpg';
 
 const Index: React.FC = () => {
@@ -83,7 +84,7 @@ const Index: React.FC = () => {
               
               {/* Subtitle */}
               <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                Join skill-based <span className="text-neon-orange font-bold animate-electric">BGMI</span> & <span className="text-primary font-bold animate-electric">Free Fire</span> tournaments. 
+                Join skill-based <span className="text-neon-orange font-bold animate-electric">BGMI</span>, <span className="text-primary font-bold animate-electric">Free Fire</span> & <span className="text-red-400 font-bold animate-electric">COD Mobile</span> tournaments. 
                 Play solo, prove your skills, and win <span className="text-success font-bold">real prizes</span>.
               </p>
               
@@ -246,7 +247,7 @@ const Index: React.FC = () => {
               <p className="text-muted-foreground">Solo tournaments only • Mobile devices required</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
               {/* BGMI Card */}
               <div className="group relative rounded-2xl overflow-hidden border border-amber-500/30 hover:border-amber-500/60 transition-all duration-500 animate-slide-up border-glow">
                 <div className="absolute inset-0">
@@ -284,6 +285,26 @@ const Index: React.FC = () => {
                   <h3 className="font-display font-bold text-3xl text-orange-400 mb-2">Free Fire</h3>
                   <p className="text-muted-foreground mb-6">Garena Free Fire</p>
                   <Badge className="text-base px-5 py-2 bg-orange-500/20 text-orange-400 border-orange-500/40 hover:bg-orange-500/30">Solo Mode</Badge>
+                </div>
+              </div>
+
+              {/* COD Mobile Card */}
+              <div className="group relative rounded-2xl overflow-hidden border border-red-500/30 hover:border-red-500/60 transition-all duration-500 animate-slide-up border-glow" style={{ animationDelay: '200ms' }}>
+                <div className="absolute inset-0">
+                  <img 
+                    src={codGame} 
+                    alt="COD Mobile Tournament" 
+                    className="w-full h-full object-cover opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-700"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+                </div>
+                <div className="relative p-10 text-center">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-500/40 to-rose-600/30 flex items-center justify-center mx-auto mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-lg shadow-red-500/30 animate-float" style={{ animationDelay: '1s' }}>
+                    <Sword className="w-10 h-10 text-red-400" />
+                  </div>
+                  <h3 className="font-display font-bold text-3xl text-red-400 mb-2">COD Mobile</h3>
+                  <p className="text-muted-foreground mb-6">Call of Duty: Mobile</p>
+                  <Badge className="text-base px-5 py-2 bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30">Solo Mode</Badge>
                 </div>
               </div>
             </div>

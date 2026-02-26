@@ -1,0 +1,557 @@
+================================================================================
+                    BATTLEARENA - COMPLETE SETUP GUIDE
+           Esports Tournament Platform for BGMI, Free Fire & COD Mobile
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1. Prerequisites
+2. Project Setup (Local Development)
+3. Firebase Project Creation
+4. Firebase Authentication Setup
+5. Firestore Database Setup
+   5a. Collections & Document Schema
+   5b. Composite Indexes (REQUIRED)
+   5c. Security Rules
+6. Razorpay Payment Gateway Setup
+7. Configuration Files
+8. Making a User Admin
+9. Running the Project
+10. Production Deployment Checklist
+11. Troubleshooting
+
+================================================================================
+1. PREREQUISITES
+================================================================================
+
+- Node.js v18+ (recommended v20 LTS)
+- npm (comes with Node.js) or Bun (https://bun.sh)
+- A Google account (for Firebase)
+- A Razorpay account (for payments) — https://razorpay.com
+- Git (optional, for version control)
+
+================================================================================
+2. PROJECT SETUP (LOCAL DEVELOPMENT)
+================================================================================
+
+1. Clone or download the repository
+2. Open terminal in the project root directory
+3. Install dependencies:
+
+   npm install
+   # OR
+   bun install
+
+4. Start the development server:
+
+   npm run dev
+   # OR
+   bun run dev
+
+5. Open http://localhost:5173 in your browser
+
+================================================================================
+3. FIREBASE PROJECT CREATION
+================================================================================
+
+Step-by-step:
+
+1. Go to https://console.firebase.google.com/
+2. Click "Create a project" (or "Add project")
+3. Enter a project name (e.g., "battlearena" or "my-esports-app")
+4. Disable Google Analytics (optional, not needed for this app)
+5. Click "Create project"
+6. Wait for project creation, then click "Continue"
+
+Register a Web App:
+1. In the Firebase Console, click the gear icon → Project Settings
+2. Scroll down to "Your apps" section
+3. Click the web icon "</>" to add a web app
+4. Enter a nickname (e.g., "BattleArena Web")
+5. Do NOT check "Firebase Hosting" (we deploy separately)
+6. Click "Register app"
+7. You will see a firebaseConfig object — COPY THIS. You need:
+   - apiKey
+   - authDomain
+   - projectId
+   - storageBucket
+   - messagingSenderId
+   - appId
+
+================================================================================
+4. FIREBASE AUTHENTICATION SETUP
+================================================================================
+
+1. In Firebase Console → Build → Authentication
+2. Click "Get started"
+3. Go to "Sign-in method" tab
+4. Enable "Email/Password" provider:
+   - Click on "Email/Password"
+   - Toggle "Enable" ON
+   - (Optional) Toggle "Email link (passwordless sign-in)" ON
+   - Click "Save"
+
+That's it! The app handles user registration and login using Firebase Auth.
+
+User documents are automatically created in Firestore when a new user signs up
+(see AuthContext.tsx for the logic).
+
+================================================================================
+5. FIRESTORE DATABASE SETUP
+================================================================================
+
+1. In Firebase Console → Build → Firestore Database
+2. Click "Create database"
+3. Choose "Start in test mode" (we'll add security rules later)
+4. Select your preferred region (e.g., asia-south1 for India)
+5. Click "Enable"
+
+5a. COLLECTIONS & DOCUMENT SCHEMA
+----------------------------------
+
+The app uses 7 Firestore collections. You do NOT need to create them manually —
+they are created automatically when the first document is written. But here is
+the complete schema for reference:
+
+COLLECTION: users
+------------------
+Document ID: Firebase Auth UID
+Fields:
+  - email: string (user's email)
+  - phone: string (user's phone number)
+  - displayName: string (chosen display name)
+  - walletBalance: number (deposited balance in ₹, default 0)
+  - winningCredits: number (prize money earned, default 0)
+  - isBanned: boolean (default false)
+  - isAdmin: boolean (default false)
+  - createdAt: timestamp
+  - updatedAt: timestamp
+
+COLLECTION: tournaments
+------------------------
+Document ID: auto-generated
+Fields:
+  - game: string ("BGMI" | "FREE_FIRE" | "COD_MOBILE")
+  - entryFee: number (entry fee in ₹)
+  - maxPlayers: number (max slots, e.g., 100)
+  - winnerCount: number (how many win, e.g., 80)
+  - prizeTiers: array of objects, each with:
+      - rankStart: number
+      - rankEnd: number
+      - prizeAmount: number
+  - matchDateTime: timestamp
+  - status: string ("UPCOMING" | "LIVE" | "COMPLETED" | "CANCELLED")
+  - roomId: string | null
+  - roomPassword: string | null
+  - roomReleased: boolean (default false)
+  - rules: string
+  - createdAt: timestamp
+  - createdBy: string (admin's user ID)
+  - registeredCount: number (default 0)
+
+COLLECTION: registrations
+--------------------------
+Document ID: auto-generated
+Fields:
+  - tournamentId: string
+  - userId: string
+  - oderId: string (same as userId — legacy field name)
+  - paymentId: string
+  - paymentStatus: string ("PENDING" | "COMPLETED" | "FAILED" | "REFUNDED")
+  - slotNumber: number
+  - joinedAt: timestamp
+  - isDisqualified: boolean (default false)
+  - disqualificationReason: string | null
+
+COLLECTION: transactions
+--------------------------
+Document ID: auto-generated
+Fields:
+  - userId: string
+  - type: string ("DEPOSIT" | "WITHDRAWAL" | "PRIZE" | "ENTRY_FEE" | "REFUND")
+  - amount: number (positive for credits, negative for debits)
+  - description: string
+  - referenceId: string | null (tournament ID or withdrawal ID)
+  - createdAt: timestamp
+
+COLLECTION: matchResults
+--------------------------
+Document ID: auto-generated
+Fields:
+  - tournamentId: string
+  - userId: string
+  - position: number
+  - kills: number
+  - prizeAmount: number
+  - createdAt: timestamp
+
+COLLECTION: withdrawals
+------------------------
+Document ID: auto-generated
+Fields:
+  - oderId: string (user ID — legacy field name)
+  - amount: number
+  - status: string ("PENDING" | "APPROVED" | "REJECTED")
+  - upiId: string
+  - createdAt: timestamp
+  - processedAt: timestamp | null
+  - processedBy: string | null (admin user ID)
+  - rejectionReason: string | null
+  - balanceDeducted: boolean
+  - balanceRefunded: boolean
+
+COLLECTION: paymentTransactions
+--------------------------------
+Document ID: auto-generated
+Fields:
+  - oderId: string (user ID)
+  - amount: number
+  - paymentId: string (Razorpay payment ID)
+  - orderId: string (Razorpay order ID)
+  - method: string ("razorpay" | "wallet")
+  - tournamentId: string
+  - status: string ("SUCCESS" | "FAILED" | "PENDING")
+  - createdAt: timestamp
+
+
+5b. COMPOSITE INDEXES (REQUIRED!)
+-----------------------------------
+
+Firestore requires composite indexes for queries that use both a where() filter
+and an orderBy() on different fields. Without these, queries will fail with a
+"requires an index" error in the console.
+
+Go to Firebase Console → Firestore → Indexes tab, and create:
+
+INDEX 1: transactions
+  Collection: transactions
+  Fields:
+    - userId (Ascending)
+    - createdAt (Descending)
+  Query scope: Collection
+
+INDEX 2: matchResults
+  Collection: matchResults
+  Fields:
+    - userId (Ascending)
+    - createdAt (Descending)
+  Query scope: Collection
+
+INDEX 3: registrations
+  Collection: registrations
+  Fields:
+    - userId (Ascending)
+  Query scope: Collection
+  (This one may auto-create, but add it if you see errors)
+
+INDEX 4: withdrawals (for admin)
+  Collection: withdrawals
+  Fields:
+    - createdAt (Descending)
+  Query scope: Collection
+
+INDEX 5: withdrawals (for user)
+  Collection: withdrawals
+  Fields:
+    - oderId (Ascending)
+  Query scope: Collection
+
+INDEX 6: tournaments
+  Collection: tournaments
+  Fields:
+    - createdAt (Descending)
+  Query scope: Collection
+
+TIP: If you see a "requires an index" error in the browser console, Firebase
+usually provides a direct link to create the missing index. Click that link
+and it auto-fills the index creation form.
+
+
+5c. FIRESTORE SECURITY RULES
+------------------------------
+
+Go to Firebase Console → Firestore → Rules tab, and paste:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if user is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Helper: check if user is the document owner
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    // Helper: check if user is admin
+    function isAdmin() {
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Tournaments collection
+    match /tournaments/{tournamentId} {
+      allow read: if true;  // Public - anyone can view
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Registrations collection
+    match /registrations/{registrationId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Transactions collection
+    match /transactions/{transactionId} {
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuth();
+      allow update: if false;  // Transactions are immutable
+      allow delete: if false;
+    }
+
+    // Match Results collection
+    match /matchResults/{resultId} {
+      allow read: if true;  // Public for leaderboard
+      allow create: if isAdmin() || isAuth();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Withdrawals collection
+    match /withdrawals/{withdrawalId} {
+      allow read: if isAuth() && (resource.data.oderId == request.auth.uid || isAdmin());
+      allow create: if isAuth();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Payment Transactions collection
+    match /paymentTransactions/{paymentId} {
+      allow read: if isAuth() && (resource.data.oderId == request.auth.uid || isAdmin());
+      allow create: if isAuth();
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
+
+Click "Publish" to apply the rules.
+
+IMPORTANT: These rules use get() to check admin status, which counts as a
+document read. For high-traffic apps, consider using Custom Claims instead
+(set via Firebase Admin SDK on the server).
+
+================================================================================
+6. RAZORPAY PAYMENT GATEWAY SETUP
+================================================================================
+
+1. Create a Razorpay account at https://dashboard.razorpay.com/signup
+2. Complete KYC verification (required for live payments)
+3. Go to Settings → API Keys
+4. Generate a new API key pair:
+   - Key ID (starts with rzp_test_ or rzp_live_)
+   - Key Secret (NEVER put this in frontend code!)
+
+5. Update the key in your project:
+   File: src/lib/payment.ts
+   Change: keyId: "YOUR_RAZORPAY_KEY_ID"
+   To:     keyId: "rzp_test_XXXXXXXXXXXXX"  (your actual key)
+
+6. Add the Razorpay checkout script to index.html:
+   The app already includes:
+   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+IMPORTANT NOTES:
+- Use rzp_test_ keys for development/testing
+- Use rzp_live_ keys for production (after KYC approval)
+- The Key Secret should ONLY be used on a backend server
+- For production, you MUST create orders server-side and verify
+  payment signatures on the backend to prevent fraud
+
+PRODUCTION PAYMENT FLOW (recommended):
+1. User clicks "Join Tournament"
+2. Frontend calls YOUR backend API to create a Razorpay Order
+3. Backend creates order using Razorpay SDK with Key Secret
+4. Backend returns order_id to frontend
+5. Frontend opens Razorpay checkout with order_id
+6. User completes payment
+7. Razorpay sends webhook to your backend
+8. Backend verifies payment signature using Key Secret
+9. Backend updates Firestore (registration, tournament count)
+10. Frontend receives real-time update via Firestore listener
+
+For webhooks, configure in Razorpay Dashboard:
+  Settings → Webhooks → Add New Webhook
+  URL: https://your-domain.com/api/webhooks/razorpay
+  Events: payment.captured, payment.failed, order.paid
+
+================================================================================
+7. CONFIGURATION FILES
+================================================================================
+
+FILE: src/lib/firebase.ts
+---------------------------
+Update the firebaseConfig object with YOUR Firebase project credentials:
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.firebasestorage.app",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+FILE: src/lib/payment.ts
+---------------------------
+Update the Razorpay key:
+
+export const razorpayConfig = {
+  keyId: "YOUR_RAZORPAY_KEY_ID",
+};
+
+FILE: index.html
+------------------
+Ensure the Razorpay script tag is present in <head>:
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+================================================================================
+8. MAKING A USER ADMIN
+================================================================================
+
+After a user signs up, they are a regular user. To make them an admin:
+
+Method 1: Firebase Console (Manual)
+1. Go to Firebase Console → Firestore
+2. Open the "users" collection
+3. Find the user document (by email or UID)
+4. Click on the document
+5. Change the field "isAdmin" from false to true
+6. Click "Update"
+7. The user needs to refresh the app to see admin features
+
+Method 2: Firebase Admin SDK (Programmatic)
+Use the Firebase Admin SDK in a Node.js script:
+
+const admin = require('firebase-admin');
+admin.initializeApp();
+const db = admin.firestore();
+
+async function makeAdmin(userId) {
+  await db.collection('users').doc(userId).update({ isAdmin: true });
+  console.log(`User ${userId} is now an admin`);
+}
+
+makeAdmin('USER_UID_HERE');
+
+================================================================================
+9. RUNNING THE PROJECT
+================================================================================
+
+Development:
+  npm run dev          # Start dev server at http://localhost:5173
+  npm run build        # Create production build
+  npm run preview      # Preview production build locally
+
+The app supports the following routes:
+  /                    - Home page
+  /login               - Login / Register
+  /tournaments         - All tournaments (filterable)
+  /tournaments/:id     - Tournament detail & join
+  /leaderboard         - Player rankings
+  /profile             - User profile
+  /wallet              - Wallet & transactions
+  /match-history       - Match history
+  /admin               - Admin dashboard (admin only)
+  /admin/tournaments   - Manage tournaments
+  /admin/users         - Manage users
+  /admin/withdrawals   - Process withdrawal requests
+
+================================================================================
+10. PRODUCTION DEPLOYMENT CHECKLIST
+================================================================================
+
+[ ] Update Firebase config with production project credentials
+[ ] Update Razorpay key from rzp_test_ to rzp_live_
+[ ] Set up Firestore security rules (Section 5c)
+[ ] Create all composite indexes (Section 5b)
+[ ] Set up a backend server for:
+    - Razorpay order creation
+    - Razorpay payment verification (signature check)
+    - Razorpay webhook handling
+[ ] Enable Firebase App Check for additional security
+[ ] Set up proper CORS rules
+[ ] Set up Firebase Cloud Functions or your own server for:
+    - Payment verification
+    - Scheduled tasks (auto-cancel expired tournaments)
+    - Push notification sending
+[ ] Configure a custom domain
+[ ] Set up SSL certificate (usually automatic with hosting providers)
+[ ] Test the entire flow:
+    - User registration
+    - Tournament creation (admin)
+    - Tournament joining + payment
+    - Room ID release
+    - Match result entry
+    - Prize distribution
+    - Withdrawal request & processing
+[ ] Set Firestore backup schedule
+[ ] Monitor Firebase usage quotas
+
+================================================================================
+11. TROUBLESHOOTING
+================================================================================
+
+ERROR: "Firestore: FAILED_PRECONDITION: The query requires an index"
+FIX: Click the link in the console error — it takes you directly to
+     the Firebase Console to create the missing index automatically.
+
+ERROR: "Payment gateway not loaded"
+FIX: Ensure <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+     is in index.html <head> section.
+
+ERROR: "Permission denied" on Firestore operations
+FIX: Check your security rules. Make sure the user is authenticated and
+     the rules allow the operation they're attempting.
+
+ERROR: User can't see admin panel
+FIX: Set isAdmin: true on their user document in Firestore (Section 8).
+
+ERROR: Tournaments don't appear
+FIX: Check that tournaments collection exists and has documents with
+     status "UPCOMING". Check browser console for Firestore errors.
+
+ERROR: Wallet balance not updating after prize distribution
+FIX: This is now handled atomically using Firestore runTransaction.
+     If still an issue, check that the user document exists in Firestore.
+
+ERROR: "Insufficient wallet balance" when joining
+FIX: User needs to add funds first, or switch to Razorpay payment method.
+
+BLANK PAGE / WHITE SCREEN:
+FIX: Open browser DevTools → Console tab. Look for JavaScript errors.
+     Most common cause: Firebase config is incorrect or Firestore rules
+     are blocking reads.
+
+SLOW PERFORMANCE:
+FIX: Ensure composite indexes are created (Section 5b). Without them,
+     Firestore falls back to full collection scans.
+
+================================================================================
+                         END OF SETUP GUIDE
+         For questions, contact the development team or file an issue.
+================================================================================

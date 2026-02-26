@@ -16,6 +16,7 @@ const badgeVariants = cva(
         warning: "border-transparent bg-warning text-warning-foreground",
         bgmi: "border-transparent bg-amber-500/20 text-amber-400 border border-amber-500/30",
         freefire: "border-transparent bg-orange-500/20 text-orange-400 border border-orange-500/30",
+        codmobile: "border-transparent bg-red-500/20 text-red-400 border border-red-500/30",
         upcoming: "border-transparent bg-primary/20 text-primary border border-primary/30",
         live: "border-transparent bg-success/20 text-success border border-success/30 animate-pulse",
         completed: "border-transparent bg-muted text-muted-foreground",

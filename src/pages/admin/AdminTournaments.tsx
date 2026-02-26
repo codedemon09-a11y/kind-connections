@@ -292,6 +292,7 @@ const AdminTournaments: React.FC = () => {
                   <SelectContent>
                     <SelectItem value="BGMI">BGMI</SelectItem>
                     <SelectItem value="FREE_FIRE">Free Fire</SelectItem>
+                    <SelectItem value="COD_MOBILE">COD Mobile</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

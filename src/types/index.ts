@@ -1,5 +1,5 @@
 // Game types supported in MVP
-export type GameType = 'BGMI' | 'FREE_FIRE';
+export type GameType = 'BGMI' | 'FREE_FIRE' | 'COD_MOBILE';
 
 // Tournament status
 export type TournamentStatus = 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'CANCELLED';

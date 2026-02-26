@@ -23,7 +23,7 @@ const Footer: React.FC = () => {
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              India's premier esports tournament platform for BGMI & Free Fire champions.
+              India's premier esports tournament platform for BGMI, Free Fire & COD Mobile champions.
             </p>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Zap className="w-4 h-4 text-primary" />
@@ -128,7 +128,7 @@ const Footer: React.FC = () => {
             </div>
             <div className="text-sm text-muted-foreground space-y-1">
               <p className="font-semibold text-foreground">Disclaimer</p>
-              <p>We are not affiliated with BGMI, Krafton, Garena, or Free Fire. All game trademarks belong to their respective owners. Entry fees are non-refundable once the match has started.</p>
+              <p>We are not affiliated with BGMI, Krafton, Garena, Free Fire, or Activision Call of Duty. All game trademarks belong to their respective owners. Entry fees are non-refundable once the match has started.</p>
             </div>
           </div>
         </div>

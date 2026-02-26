@@ -47,7 +47,7 @@ export const initiateRazorpayPayment = ({
     currency: 'INR',
     name: 'BattleArena',
     description: `Tournament Entry: ${tournamentName}`,
-    image: '/favicon.ico', // Your logo
+    image: '/favicon.png', // Your logo
     // order_id: 'ORDER_ID_FROM_BACKEND', // Required in production - get from backend
     prefill: {
       name: userDisplayName,

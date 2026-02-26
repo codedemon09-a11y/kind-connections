@@ -43,6 +43,7 @@ const TournamentsPage: React.FC = () => {
     { value: 'ALL', label: 'All Games' },
     { value: 'BGMI', label: 'BGMI' },
     { value: 'FREE_FIRE', label: 'Free Fire' },
+    { value: 'COD_MOBILE', label: 'COD Mobile' },
   ];
 
   const statusOptions: { value: TournamentStatus | 'ALL'; label: string }[] = [
