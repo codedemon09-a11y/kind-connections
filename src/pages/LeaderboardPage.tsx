@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import { useData } from "@/contexts/DataContext";
 import { collection, getDocs, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -314,6 +315,7 @@ const LeaderboardPage = () => {
           </CardContent>
         </Card>
       </main>
+      <Footer />
     </div>
   );
 };

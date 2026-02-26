@@ -149,8 +149,8 @@ const TournamentDetailPage: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Badge variant={tournament.game === 'BGMI' ? 'bgmi' : 'freefire'}>
-                    {tournament.game}
+                  <Badge variant={tournament.game === 'BGMI' ? 'bgmi' : tournament.game === 'COD_MOBILE' ? 'codmobile' : 'freefire'}>
+                    {tournament.game === 'COD_MOBILE' ? 'COD Mobile' : tournament.game}
                   </Badge>
                   <Badge variant={tournament.status.toLowerCase() as any}>
                     {tournament.status === 'LIVE' && '● '}{tournament.status}
@@ -164,7 +164,7 @@ const TournamentDetailPage: React.FC = () => {
                 </div>
                 
                 <h1 className="text-3xl md:text-4xl font-display font-bold">
-                  {tournament.game} Solo Tournament
+                  {tournament.game === 'COD_MOBILE' ? 'COD Mobile' : tournament.game} Solo Tournament
                 </h1>
                 
                 <div className="flex items-center gap-2 text-muted-foreground">

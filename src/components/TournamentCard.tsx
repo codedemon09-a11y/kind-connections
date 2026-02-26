@@ -52,9 +52,9 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isRegistere
   };
 
   const getGameBadge = () => {
-    return tournament.game === 'BGMI' 
-      ? <Badge variant="bgmi">{tournament.game}</Badge>
-      : <Badge variant="freefire">Free Fire</Badge>;
+    if (tournament.game === 'BGMI') return <Badge variant="bgmi">{tournament.game}</Badge>;
+    if (tournament.game === 'COD_MOBILE') return <Badge variant="codmobile">COD Mobile</Badge>;
+    return <Badge variant="freefire">Free Fire</Badge>;
   };
 
   return (
@@ -79,7 +79,7 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isRegistere
           {/* Title */}
           <div>
             <h3 className="font-display font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
-              {tournament.game} Solo Tournament
+              {tournament.game === 'COD_MOBILE' ? 'COD Mobile' : tournament.game} Solo Tournament
             </h3>
             <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
               <Clock className="w-4 h-4 text-primary/70" />
