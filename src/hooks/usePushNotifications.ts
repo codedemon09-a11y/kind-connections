@@ -48,15 +48,12 @@ export const usePushNotifications = () => {
   }, [isSupported, toast]);
 
   const sendNotification = useCallback((title: string, options?: NotificationOptions) => {
-    if (permission !== 'granted') {
-      console.log('Notification permission not granted');
-      return;
-    }
+    if (permission !== 'granted') return;
 
     try {
       const notification = new Notification(title, {
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
+        icon: '/favicon.png',
+        badge: '/favicon.png',
         ...options
       });
 
@@ -65,7 +62,6 @@ export const usePushNotifications = () => {
         notification.close();
       };
 
-      // Auto close after 5 seconds
       setTimeout(() => notification.close(), 5000);
     } catch (error) {
       console.error('Error sending notification:', error);

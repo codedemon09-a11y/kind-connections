@@ -93,6 +93,7 @@ const AdminTournaments: React.FC = () => {
   // Form states
   const [newTournament, setNewTournament] = useState({
     game: 'BGMI' as GameType,
+    teamMode: 'SOLO' as 'SOLO' | 'DUO' | 'SQUAD',
     entryFee: 25,
     maxPlayers: 100,
     winnerCount: 80,
@@ -127,6 +128,7 @@ const AdminTournaments: React.FC = () => {
     try {
       await createTournament({
         game: newTournament.game,
+        teamMode: newTournament.teamMode,
         entryFee: newTournament.entryFee,
         maxPlayers: newTournament.maxPlayers,
         winnerCount: newTournament.winnerCount,
@@ -143,6 +145,7 @@ const AdminTournaments: React.FC = () => {
       setCreateDialogOpen(false);
       setNewTournament({
         game: 'BGMI',
+        teamMode: 'SOLO',
         entryFee: 25,
         maxPlayers: 100,
         winnerCount: 80,

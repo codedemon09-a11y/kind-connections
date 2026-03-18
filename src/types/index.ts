@@ -1,5 +1,8 @@
-// Game types supported in MVP
+// Game types supported
 export type GameType = 'BGMI' | 'FREE_FIRE' | 'COD_MOBILE';
+
+// Team mode types
+export type TeamMode = 'SOLO' | 'DUO' | 'SQUAD';
 
 // Tournament status
 export type TournamentStatus = 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
@@ -11,7 +14,7 @@ export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
 export type WithdrawalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 // Transaction types
-export type TransactionType = 'DEPOSIT' | 'WITHDRAWAL' | 'PRIZE' | 'ENTRY_FEE' | 'REFUND';
+export type TransactionType = 'DEPOSIT' | 'WITHDRAWAL' | 'PRIZE' | 'ENTRY_FEE' | 'REFUND' | 'REFERRAL_BONUS';
 
 // User interface
 export interface User {
@@ -23,6 +26,9 @@ export interface User {
   winningCredits: number;
   isBanned: boolean;
   isAdmin: boolean;
+  referralCode: string;
+  referredBy: string | null;
+  referralCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,10 +44,11 @@ export interface PrizeTier {
 export interface Tournament {
   id: string;
   game: GameType;
+  teamMode: TeamMode;
   entryFee: number;
   maxPlayers: number;
-  winnerCount: number; // How many players win (e.g., 80 out of 100)
-  prizeTiers: PrizeTier[]; // Custom prize distribution
+  winnerCount: number;
+  prizeTiers: PrizeTier[];
   matchDateTime: Date;
   status: TournamentStatus;
   roomId: string | null;
@@ -122,6 +129,10 @@ export interface UserStats {
   totalMatches: number;
   totalWins: number;
   totalEarnings: number;
+  totalKills: number;
+  avgKills: number;
+  kdRatio: number;
+  bestPosition: number;
 }
 
 // Match Result for history display
@@ -135,6 +146,38 @@ export interface MatchResult {
   prizeAmount: number;
   createdAt: Date;
 }
+
+// Team mode labels
+export const teamModeLabels: Record<TeamMode, string> = {
+  SOLO: 'Solo',
+  DUO: 'Duo',
+  SQUAD: 'Squad',
+};
+
+// Team mode player counts
+export const teamModePlayerCount: Record<TeamMode, number> = {
+  SOLO: 1,
+  DUO: 2,
+  SQUAD: 4,
+};
+
+// Game display names
+export const gameDisplayNames: Record<GameType, string> = {
+  BGMI: 'BGMI',
+  FREE_FIRE: 'Free Fire',
+  COD_MOBILE: 'COD Mobile',
+};
+
+// Generate referral code from user id
+export const generateReferralCode = (userId: string): string => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const hash = userId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  let code = 'BA';
+  for (let i = 0; i < 6; i++) {
+    code += chars[(hash * (i + 1) + i * 7) % chars.length];
+  }
+  return code;
+};
 
 // Calculate total prize pool from tiers
 export const calculateTotalPrizePool = (prizeTiers: PrizeTier[]): number => {
