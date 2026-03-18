@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/contexts/AuthContext';
-import { Tournament } from '@/types';
+import { Tournament, gameDisplayNames, teamModeLabels } from '@/types';
 import { razorpayConfig } from '@/lib/payment';
 import {
   Wallet,
@@ -57,21 +57,20 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
   const razorpayKeyId = razorpayConfig.keyId;
   const razorpayConfigured = !!razorpayKeyId && !razorpayKeyId.startsWith('YOUR_');
 
-  // Check if Razorpay is loaded
+  const gameName = gameDisplayNames[tournament.game];
+  const modeName = teamModeLabels[tournament.teamMode || 'SOLO'];
+
   useEffect(() => {
     const checkRazorpay = () => {
       if (typeof window !== 'undefined' && typeof window.Razorpay !== 'undefined') {
         setRazorpayLoaded(true);
       }
     };
-
     checkRazorpay();
-    // Check again after a delay in case script loads late
     const timer = setTimeout(checkRazorpay, 1000);
     return () => clearTimeout(timer);
   }, [open]);
 
-  // If Razorpay isn't configured, default to wallet when possible
   useEffect(() => {
     if (!open) return;
     if (!razorpayConfigured && hasEnoughBalance) {
@@ -84,12 +83,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
       setError('Razorpay is not configured. Please contact admin or use Wallet.');
       return;
     }
-
     if (!razorpayLoaded) {
       setError('Payment gateway not loaded. Please refresh the page and try again.');
       return;
     }
-
     if (!user) {
       setError('Please login to make a payment.');
       return;
@@ -101,11 +98,11 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
     const options = {
       key: razorpayKeyId,
-      amount: entryFee * 100, // Razorpay expects amount in paise
+      amount: entryFee * 100,
       currency: 'INR',
       name: 'BattleArena',
-      description: `Tournament Entry: ${tournament.game} Solo Tournament`,
-      image: '/favicon.ico',
+      description: `Tournament Entry: ${gameName} ${modeName}`,
+      image: '/favicon.png',
       prefill: {
         name: user.displayName || '',
         email: user.email || '',
@@ -121,26 +118,19 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         razorpay_order_id?: string;
         razorpay_signature?: string;
       }) {
-        // Payment successful
-        console.log('Razorpay Payment Success:', response);
-
         setPaymentStep('success');
         setIsProcessing(false);
-
-        // Wait a moment to show success, then trigger callback
         setTimeout(() => {
           onPaymentSuccess(
             response.razorpay_payment_id,
             response.razorpay_order_id || `order_${Date.now()}`,
             'razorpay'
           );
-          // Reset dialog state
           setPaymentStep('select');
         }, 1500);
       },
       modal: {
         ondismiss: function () {
-          console.log('Payment modal closed by user');
           setIsProcessing(false);
           setPaymentStep('select');
           setError('Payment cancelled. Please try again.');
@@ -149,37 +139,18 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         escape: true,
         animation: true,
       },
-      retry: {
-        enabled: true,
-        max_count: 3,
-      },
+      retry: { enabled: true, max_count: 3 },
     };
 
     try {
       const razorpay = new window.Razorpay(options);
-
-      razorpay.on('payment.failed', function (response: {
-        error: {
-          code: string;
-          description: string;
-          source: string;
-          step: string;
-          reason: string;
-          metadata: {
-            order_id?: string;
-            payment_id?: string;
-          };
-        };
-      }) {
-        console.error('Razorpay Payment Failed:', response.error);
+      razorpay.on('payment.failed', function (response: any) {
         setIsProcessing(false);
         setPaymentStep('select');
-        setError(response.error.description || 'Payment failed. Please try again.');
+        setError(response.error?.description || 'Payment failed. Please try again.');
       });
-
       razorpay.open();
     } catch (err) {
-      console.error('Razorpay initialization error:', err);
       setIsProcessing(false);
       setPaymentStep('select');
       setError('Failed to initialize payment gateway. Please try again.');
@@ -191,44 +162,27 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
       setError('Insufficient wallet balance. Please use Razorpay.');
       return;
     }
-
     setIsProcessing(true);
     setPaymentStep('processing');
     setError(null);
-
-    // Simulate wallet deduction
     await new Promise(resolve => setTimeout(resolve, 1000));
-
     setPaymentStep('success');
     setIsProcessing(false);
-
     setTimeout(() => {
-      onPaymentSuccess(
-        `wallet_${Date.now()}`,
-        `order_wallet_${Date.now()}`,
-        'wallet'
-      );
+      onPaymentSuccess(`wallet_${Date.now()}`, `order_wallet_${Date.now()}`, 'wallet');
       setPaymentStep('select');
     }, 1500);
   };
 
   const handlePayment = () => {
-    if (paymentMethod === 'razorpay') {
-      handleRazorpayPayment();
-    } else {
-      handleWalletPayment();
-    }
+    if (paymentMethod === 'razorpay') handleRazorpayPayment();
+    else handleWalletPayment();
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (isProcessing) return;
-
     onOpenChange(nextOpen);
-
-    if (!nextOpen) {
-      setPaymentStep('select');
-      setError(null);
-    }
+    if (!nextOpen) { setPaymentStep('select'); setError(null); }
   };
 
   return (
@@ -242,35 +196,20 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 Pay Entry Fee
               </DialogTitle>
               <DialogDescription>
-                Complete payment to join {tournament.game} Tournament
+                Complete payment to join {gameName} {modeName} Tournament
               </DialogDescription>
             </DialogHeader>
-
             <div className="space-y-6 py-4">
-              {/* Amount Summary */}
               <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Entry Fee</span>
                   <span className="text-2xl font-bold text-primary">₹{entryFee}</span>
                 </div>
               </div>
-
-              {/* Payment Method Selection */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Select Payment Method</Label>
-                <RadioGroup
-                  value={paymentMethod}
-                  onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
-                  className="space-y-3"
-                >
-                  {/* Razorpay Option */}
-                  <label
-                    className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all ${
-                      paymentMethod === 'razorpay'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
+                <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)} className="space-y-3">
+                  <label className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all ${paymentMethod === 'razorpay' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
                     <RadioGroupItem value="razorpay" id="razorpay" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -278,20 +217,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         <span className="font-medium">Razorpay</span>
                         <Shield className="w-4 h-4 text-success" />
                       </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        UPI, Card, Net Banking, Wallet
-                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">UPI, Card, Net Banking, Wallet</div>
                     </div>
                   </label>
-
-                  {/* Wallet Option */}
-                  <label
-                    className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all ${
-                      paymentMethod === 'wallet'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    } ${!hasEnoughBalance ? 'opacity-60' : ''}`}
-                  >
+                  <label className={`flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all ${paymentMethod === 'wallet' ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'} ${!hasEnoughBalance ? 'opacity-60' : ''}`}>
                     <RadioGroupItem value="wallet" id="wallet" disabled={!hasEnoughBalance} />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -300,69 +229,43 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                       </div>
                       <div className="text-sm text-muted-foreground mt-1">
                         Available: ₹{walletBalance}
-                        {!hasEnoughBalance && (
-                          <span className="text-destructive ml-2">(Insufficient)</span>
-                        )}
+                        {!hasEnoughBalance && <span className="text-destructive ml-2">(Insufficient)</span>}
                       </div>
                     </div>
                   </label>
                 </RadioGroup>
               </div>
-
-              {/* Razorpay Loading / Config Warning */}
               {paymentMethod === 'razorpay' && (!razorpayConfigured || !razorpayLoaded) && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 text-warning text-sm">
                   <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
                   {!razorpayConfigured ? 'Razorpay is not configured by admin.' : 'Loading payment gateway...'}
                 </div>
               )}
-
-              {/* Error Message */}
               {error && (
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   {error}
                 </div>
               )}
-
-              {/* Secure Payment Notice */}
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Shield className="w-3 h-3" />
                 <span>Secure payment powered by Razorpay. Your details are encrypted.</span>
               </div>
-
-              {/* Pay Button */}
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={handlePayment}
-                disabled={isProcessing || (paymentMethod === 'razorpay' && (!razorpayLoaded || !razorpayConfigured))}
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Processing...
-                  </>
-                ) : (
-                  <>Pay ₹{entryFee}</>
-                )}
+              <Button className="w-full" size="lg" onClick={handlePayment} disabled={isProcessing || (paymentMethod === 'razorpay' && (!razorpayLoaded || !razorpayConfigured))}>
+                {isProcessing ? (<><Loader2 className="w-4 h-4 animate-spin mr-2" />Processing...</>) : (<>Pay ₹{entryFee}</>)}
               </Button>
             </div>
           </>
         )}
-
         {paymentStep === 'processing' && (
           <div className="py-12 text-center space-y-4">
             <Loader2 className="w-16 h-16 animate-spin mx-auto text-primary" />
             <div>
               <h3 className="text-lg font-semibold">Processing Payment</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Please complete the payment in the Razorpay window...
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">Please complete the payment...</p>
             </div>
           </div>
         )}
-
         {paymentStep === 'success' && (
           <div className="py-12 text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mx-auto">
@@ -370,9 +273,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-semibold text-success">Payment Successful!</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                ₹{entryFee} paid • Joining tournament...
-              </p>
+              <p className="text-sm text-muted-foreground mt-1">₹{entryFee} paid • Joining tournament...</p>
             </div>
           </div>
         )}

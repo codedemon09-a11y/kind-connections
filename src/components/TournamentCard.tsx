@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Tournament, calculateTotalPrizePool } from '@/types';
+import { Tournament, calculateTotalPrizePool, teamModeLabels, gameDisplayNames } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import CountdownTimer from '@/components/CountdownTimer';
 import { 
   Users, 
   Trophy, 
@@ -12,7 +13,9 @@ import {
   ChevronRight,
   Flame,
   Zap,
-  Sparkles
+  Sparkles,
+  UserCheck,
+  UsersRound,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -27,6 +30,9 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isRegistere
   const spotsLeft = tournament.maxPlayers - (tournament.registeredCount || 0);
   const fillPercentage = ((tournament.registeredCount || 0) / tournament.maxPlayers) * 100;
   const isAlmostFull = spotsLeft <= 10;
+
+  const gameName = gameDisplayNames[tournament.game];
+  const modeName = teamModeLabels[tournament.teamMode || 'SOLO'];
 
   const getStatusBadge = () => {
     switch (tournament.status) {
@@ -57,13 +63,25 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isRegistere
     return <Badge variant="freefire">Free Fire</Badge>;
   };
 
+  const getTeamModeIcon = () => {
+    switch (tournament.teamMode) {
+      case 'DUO': return <UserCheck className="w-3 h-3" />;
+      case 'SQUAD': return <UsersRound className="w-3 h-3" />;
+      default: return <Users className="w-3 h-3" />;
+    }
+  };
+
   return (
     <Card className="group overflow-hidden gaming-card border-border/50 hover:border-primary/50 transition-all duration-500 border-glow">
       <CardContent className="p-0">
         {/* Header with game and status */}
         <div className="p-4 pb-0 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {getGameBadge()}
+            <Badge variant="outline" className="gap-1 text-[10px]">
+              {getTeamModeIcon()}
+              {modeName}
+            </Badge>
             {getStatusBadge()}
           </div>
           {isRegistered && (
@@ -75,37 +93,42 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isRegistere
         </div>
 
         {/* Main Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-3">
           {/* Title */}
           <div>
             <h3 className="font-display font-bold text-lg text-foreground group-hover:text-primary transition-colors duration-300">
-              {tournament.game === 'COD_MOBILE' ? 'COD Mobile' : tournament.game} Solo Tournament
+              {gameName} {modeName} Tournament
             </h3>
-            <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-              <Clock className="w-4 h-4 text-primary/70" />
+            <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground">
+              <Clock className="w-3.5 h-3.5 text-primary/70" />
               {format(new Date(tournament.matchDateTime), 'MMM dd, yyyy • hh:mm a')}
             </div>
           </div>
 
+          {/* Countdown Timer */}
+          {tournament.status === 'UPCOMING' && (
+            <CountdownTimer targetDate={new Date(tournament.matchDateTime)} compact />
+          )}
+
           {/* Stats Grid */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 rounded-xl bg-secondary/50 border border-border/50 group-hover:border-border transition-colors duration-300">
-              <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+            <div className="p-2.5 rounded-xl bg-secondary/50 border border-border/50 group-hover:border-border transition-colors duration-300">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-[10px] mb-0.5">
                 <IndianRupee className="w-3 h-3" />
                 Entry Fee
               </div>
-              <div className="font-display font-bold text-xl text-foreground">
+              <div className="font-display font-bold text-lg text-foreground">
                 ₹{tournament.entryFee}
               </div>
             </div>
-            <div className="relative p-3 rounded-xl bg-gradient-to-br from-primary/10 to-neon-pink/10 border border-primary/30 overflow-hidden">
-              <div className="absolute top-0 right-0 w-12 h-12 bg-primary/20 rounded-full blur-xl" />
+            <div className="relative p-2.5 rounded-xl bg-gradient-to-br from-primary/10 to-neon-pink/10 border border-primary/30 overflow-hidden">
+              <div className="absolute top-0 right-0 w-10 h-10 bg-primary/20 rounded-full blur-xl" />
               <div className="relative">
-                <div className="flex items-center gap-2 text-primary text-xs mb-1">
+                <div className="flex items-center gap-1.5 text-primary text-[10px] mb-0.5">
                   <Trophy className="w-3 h-3" />
                   Prize Pool
                 </div>
-                <div className="font-display font-bold text-xl text-primary">
+                <div className="font-display font-bold text-lg text-primary">
                   ₹{totalPrizePool}
                 </div>
               </div>
@@ -113,18 +136,18 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isRegistere
           </div>
 
           {/* Player Progress */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Users className="w-4 h-4" />
-                <span>{tournament.registeredCount || 0} / {tournament.maxPlayers} Players</span>
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Users className="w-3.5 h-3.5" />
+                <span className="text-xs">{tournament.registeredCount || 0} / {tournament.maxPlayers}</span>
               </div>
-              <span className={`font-medium flex items-center gap-1 ${isAlmostFull ? 'text-warning' : 'text-muted-foreground'}`}>
+              <span className={`font-medium text-xs flex items-center gap-1 ${isAlmostFull ? 'text-warning' : 'text-muted-foreground'}`}>
                 {isAlmostFull && <Flame className="w-3 h-3" />}
                 {spotsLeft} left
               </span>
             </div>
-            <div className="h-2 rounded-full bg-secondary overflow-hidden">
+            <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
               <div 
                 className="h-full rounded-full bg-gradient-to-r from-primary via-neon-pink to-primary transition-all duration-700 ease-out"
                 style={{ 
@@ -145,6 +168,7 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, isRegistere
               }`}
               variant={tournament.status === 'UPCOMING' ? 'default' : 'outline'}
               disabled={tournament.status === 'CANCELLED'}
+              size="sm"
             >
               {tournament.status === 'UPCOMING' ? (
                 isRegistered ? (
