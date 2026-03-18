@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Gamepad2, Mail, UserPlus, Lock, ArrowLeft, Loader2, Zap, Crown, Sparkles, Shield } from 'lucide-react';
+import { Gamepad2, Mail, UserPlus, Lock, ArrowLeft, Loader2, Zap, Crown, Sparkles, Shield, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 
@@ -17,6 +17,7 @@ const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [referralCode, setReferralCode] = useState('');
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,16 +37,10 @@ const LoginPage: React.FC = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-    if (!displayName.trim()) {
-      toast.error('Display name is required');
-      return;
-    }
+    if (password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+    if (!displayName.trim()) { toast.error('Display name is required'); return; }
     try {
-      await signup(email, password, displayName);
+      await signup(email, password, displayName, referralCode || undefined);
       toast.success('Account created! Welcome to the arena! 🏆');
       navigate('/');
     } catch (error: any) {
@@ -60,26 +55,21 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-      {/* Background Effects */}
       <div className="absolute inset-0 hero-gradient pointer-events-none" />
       <div className="absolute inset-0 cyber-lines opacity-10 pointer-events-none" />
       <div className="absolute top-20 left-[20%] w-72 h-72 bg-primary/20 rounded-full blur-[100px] animate-pulse pointer-events-none" />
       <div className="absolute bottom-20 right-[20%] w-72 h-72 bg-neon-pink/20 rounded-full blur-[100px] animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
 
-      {/* Header */}
       <header className="container py-6 relative z-10">
         <Link to="/" className="flex items-center gap-3 w-fit group">
           <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary/30 to-neon-pink/30 flex items-center justify-center border border-primary/50 group-hover:glow-primary transition-all duration-500">
             <Gamepad2 className="w-5 h-5 text-primary group-hover:scale-110 transition-transform duration-300" />
           </div>
-          <span className="font-display font-bold text-xl text-gradient">
-            BattleArena
-          </span>
+          <span className="font-display font-bold text-xl text-gradient">BattleArena</span>
         </Link>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 container flex items-center justify-center py-10 relative z-10">
+      <main className="flex-1 container flex items-center justify-center py-8 md:py-10 relative z-10">
         <Card className="w-full max-w-md gaming-card border-primary/20 animate-scale-in">
           <CardHeader className="text-center pb-2">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-neon-pink/30 flex items-center justify-center mx-auto mb-4 border border-primary/30 animate-pulse-glow">
@@ -91,136 +81,52 @@ const LoginPage: React.FC = () => {
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2 mb-6 bg-secondary/50 p-1">
-                <TabsTrigger 
-                  value="login" 
-                  className="gap-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/30"
-                >
-                  <Zap className="w-4 h-4" />
-                  Sign In
+                <TabsTrigger value="login" className="gap-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/30">
+                  <Zap className="w-4 h-4" />Sign In
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="signup" 
-                  className="gap-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/30"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Sign Up
+                <TabsTrigger value="signup" className="gap-2 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:border data-[state=active]:border-primary/30">
+                  <UserPlus className="w-4 h-4" />Sign Up
                 </TabsTrigger>
               </TabsList>
               
-              {/* Login */}
               <TabsContent value="login" className="animate-fade-in">
                 <form onSubmit={handleEmailLogin} className="space-y-5">
                   <div className="space-y-2">
-                    <Label htmlFor="login-email" className="text-sm font-medium flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-primary" />
-                      Email
-                    </Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="player@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
-                    />
+                    <Label htmlFor="login-email" className="text-sm font-medium flex items-center gap-2"><Mail className="w-4 h-4 text-primary" />Email</Label>
+                    <Input id="login-email" type="email" placeholder="player@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password" className="text-sm font-medium flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-primary" />
-                      Password
-                    </Label>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
-                    />
+                    <Label htmlFor="login-password" className="text-sm font-medium flex items-center gap-2"><Lock className="w-4 h-4 text-primary" />Password</Label>
+                    <Input id="login-password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20" />
                   </div>
-                  <div className="flex justify-end">
-                    <ForgotPasswordDialog />
-                  </div>
-                  <Button type="submit" className="w-full gap-2 glow-primary hover:glow-primary-intense transition-all duration-300 animate-pulse-glow" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Entering Arena...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="w-4 h-4" />
-                        Enter Arena
-                      </>
-                    )}
+                  <div className="flex justify-end"><ForgotPasswordDialog /></div>
+                  <Button type="submit" className="w-full gap-2 glow-primary hover:glow-primary-intense transition-all duration-300" disabled={isLoading}>
+                    {isLoading ? (<><Loader2 className="w-4 h-4 animate-spin" />Entering Arena...</>) : (<><Zap className="w-4 h-4" />Enter Arena</>)}
                   </Button>
                 </form>
               </TabsContent>
               
-              {/* Signup */}
               <TabsContent value="signup" className="animate-fade-in">
-                <form onSubmit={handleSignup} className="space-y-5">
+                <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name" className="text-sm font-medium flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" />
-                      Gamer Tag
-                    </Label>
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="ProPlayer123"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      required
-                      className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
-                    />
+                    <Label htmlFor="signup-name" className="text-sm font-medium flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" />Gamer Tag</Label>
+                    <Input id="signup-name" type="text" placeholder="ProPlayer123" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="text-sm font-medium flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-primary" />
-                      Email
-                    </Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="player@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
-                    />
+                    <Label htmlFor="signup-email" className="text-sm font-medium flex items-center gap-2"><Mail className="w-4 h-4 text-primary" />Email</Label>
+                    <Input id="signup-email" type="email" placeholder="player@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="text-sm font-medium flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-primary" />
-                      Password
-                    </Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
-                    />
+                    <Label htmlFor="signup-password" className="text-sm font-medium flex items-center gap-2"><Shield className="w-4 h-4 text-primary" />Password</Label>
+                    <Input id="signup-password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20" />
                     <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="referral" className="text-sm font-medium flex items-center gap-2"><Gift className="w-4 h-4 text-primary" />Referral Code <span className="text-muted-foreground">(optional)</span></Label>
+                    <Input id="referral" type="text" placeholder="Enter referral code" value={referralCode} onChange={(e) => setReferralCode(e.target.value.toUpperCase())} className="bg-secondary/50 border-border/50 focus:border-primary/50 focus:ring-primary/20" />
+                  </div>
                   <Button type="submit" className="w-full gap-2 glow-primary hover:glow-primary-intense transition-all duration-300" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Creating Account...
-                      </>
-                    ) : (
-                      <>
-                        <Crown className="w-4 h-4" />
-                        Create Account
-                      </>
-                    )}
+                    {isLoading ? (<><Loader2 className="w-4 h-4 animate-spin" />Creating Account...</>) : (<><Crown className="w-4 h-4" />Create Account</>)}
                   </Button>
                 </form>
               </TabsContent>
@@ -229,11 +135,9 @@ const LoginPage: React.FC = () => {
         </Card>
       </main>
 
-      {/* Back Link */}
       <div className="container py-6 relative z-10">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group">
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" />
-          Back to Home
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" />Back to Home
         </Link>
       </div>
     </div>
