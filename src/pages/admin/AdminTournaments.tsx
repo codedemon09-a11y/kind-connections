@@ -145,6 +145,7 @@ const AdminTournaments: React.FC = () => {
       setCreateDialogOpen(false);
       setNewTournament({
         game: 'BGMI',
+        teamMode: 'SOLO',
         entryFee: 25,
         maxPlayers: 100,
         winnerCount: 80,
