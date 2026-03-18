@@ -128,6 +128,7 @@ const AdminTournaments: React.FC = () => {
     try {
       await createTournament({
         game: newTournament.game,
+        teamMode: newTournament.teamMode,
         entryFee: newTournament.entryFee,
         maxPlayers: newTournament.maxPlayers,
         winnerCount: newTournament.winnerCount,
