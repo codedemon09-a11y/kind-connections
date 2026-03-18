@@ -93,6 +93,7 @@ const AdminTournaments: React.FC = () => {
   // Form states
   const [newTournament, setNewTournament] = useState({
     game: 'BGMI' as GameType,
+    teamMode: 'SOLO' as 'SOLO' | 'DUO' | 'SQUAD',
     entryFee: 25,
     maxPlayers: 100,
     winnerCount: 80,
