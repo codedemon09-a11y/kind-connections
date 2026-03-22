@@ -264,7 +264,7 @@ const Index: React.FC = () => {
                   </div>
                   <h3 className="font-display font-bold text-3xl text-amber-400 mb-2">BGMI</h3>
                   <p className="text-muted-foreground mb-6">Battlegrounds Mobile India</p>
-                  <Badge className="text-base px-5 py-2 bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30">Solo Mode</Badge>
+                  <Badge className="text-base px-5 py-2 bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30">Solo • Duo • Squad</Badge>
                 </div>
               </div>
               
