@@ -300,6 +300,23 @@ const AdminTournaments: React.FC = () => {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label>Team Mode</Label>
+                <Select
+                  value={newTournament.teamMode}
+                  onValueChange={(value: 'SOLO' | 'DUO' | 'SQUAD') => setNewTournament(prev => ({ ...prev, teamMode: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SOLO">Solo</SelectItem>
+                    <SelectItem value="DUO">Duo</SelectItem>
+                    <SelectItem value="SQUAD">Squad</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Entry Fee (₹)</Label>
@@ -434,7 +451,7 @@ const AdminTournaments: React.FC = () => {
                       </div>
                       <div>
                         <CardTitle className="text-lg flex items-center gap-2">
-                          {tournament.game} Solo Tournament
+                          {tournament.game} {tournament.teamMode || 'Solo'} Tournament
                           <Badge variant={getStatusColor(tournament.status) as any}>
                             {tournament.status}
                           </Badge>

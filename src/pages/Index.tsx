@@ -244,7 +244,7 @@ const Index: React.FC = () => {
               <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">
                 Choose Your <span className="text-gradient">Battlefield</span>
               </h2>
-              <p className="text-muted-foreground">Solo tournaments only • Mobile devices required</p>
+              <p className="text-muted-foreground">Solo, Duo & Squad modes • Mobile devices required</p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
@@ -264,7 +264,7 @@ const Index: React.FC = () => {
                   </div>
                   <h3 className="font-display font-bold text-3xl text-amber-400 mb-2">BGMI</h3>
                   <p className="text-muted-foreground mb-6">Battlegrounds Mobile India</p>
-                  <Badge className="text-base px-5 py-2 bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30">Solo Mode</Badge>
+                  <Badge className="text-base px-5 py-2 bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500/30">Solo • Duo • Squad</Badge>
                 </div>
               </div>
               
@@ -284,7 +284,7 @@ const Index: React.FC = () => {
                   </div>
                   <h3 className="font-display font-bold text-3xl text-orange-400 mb-2">Free Fire</h3>
                   <p className="text-muted-foreground mb-6">Garena Free Fire</p>
-                  <Badge className="text-base px-5 py-2 bg-orange-500/20 text-orange-400 border-orange-500/40 hover:bg-orange-500/30">Solo Mode</Badge>
+                  <Badge className="text-base px-5 py-2 bg-orange-500/20 text-orange-400 border-orange-500/40 hover:bg-orange-500/30">Solo • Duo • Squad</Badge>
                 </div>
               </div>
 
@@ -304,7 +304,7 @@ const Index: React.FC = () => {
                   </div>
                   <h3 className="font-display font-bold text-3xl text-red-400 mb-2">COD Mobile</h3>
                   <p className="text-muted-foreground mb-6">Call of Duty: Mobile</p>
-                  <Badge className="text-base px-5 py-2 bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30">Solo Mode</Badge>
+                  <Badge className="text-base px-5 py-2 bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30">Solo • Duo • Squad</Badge>
                 </div>
               </div>
             </div>

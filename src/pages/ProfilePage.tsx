@@ -77,7 +77,7 @@ const ProfilePage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
             <div className="lg:col-span-2 space-y-6">
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4">
                 <Card><CardContent className="p-3 md:p-4 text-center">
                   <Gamepad2 className="w-5 h-5 mx-auto mb-1.5 text-primary" />
                   <div className="text-xl md:text-2xl font-display font-bold">{totalMatches}</div>
