@@ -132,6 +132,7 @@ COLLECTION: tournaments
 Document ID: auto-generated
 Fields:
   - game: string ("BGMI" | "FREE_FIRE" | "COD_MOBILE")
+  - teamMode: string ("SOLO" | "DUO" | "SQUAD", default "SOLO")
   - entryFee: number (entry fee in ₹)
   - maxPlayers: number (max slots, e.g., 100)
   - winnerCount: number (how many win, e.g., 80)
