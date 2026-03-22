@@ -451,7 +451,7 @@ const AdminTournaments: React.FC = () => {
                       </div>
                       <div>
                         <CardTitle className="text-lg flex items-center gap-2">
-                          {tournament.game} Solo Tournament
+                          {tournament.game} {tournament.teamMode || 'Solo'} Tournament
                           <Badge variant={getStatusColor(tournament.status) as any}>
                             {tournament.status}
                           </Badge>

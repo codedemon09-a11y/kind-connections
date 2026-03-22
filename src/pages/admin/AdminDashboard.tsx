@@ -111,7 +111,7 @@ const AdminDashboard: React.FC = () => {
                       'bg-muted'
                     }`} />
                     <div>
-                      <div className="font-medium text-sm">{tournament.game} Solo</div>
+                      <div className="font-medium text-sm">{tournament.game} {tournament.teamMode || 'Solo'}</div>
                       <div className="text-xs text-muted-foreground">
                         ₹{tournament.entryFee} • {tournament.registeredCount || 0}/{tournament.maxPlayers}
                       </div>

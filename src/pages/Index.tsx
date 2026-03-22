@@ -304,7 +304,7 @@ const Index: React.FC = () => {
                   </div>
                   <h3 className="font-display font-bold text-3xl text-red-400 mb-2">COD Mobile</h3>
                   <p className="text-muted-foreground mb-6">Call of Duty: Mobile</p>
-                  <Badge className="text-base px-5 py-2 bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30">Solo Mode</Badge>
+                  <Badge className="text-base px-5 py-2 bg-red-500/20 text-red-400 border-red-500/40 hover:bg-red-500/30">Solo • Duo • Squad</Badge>
                 </div>
               </div>
             </div>
