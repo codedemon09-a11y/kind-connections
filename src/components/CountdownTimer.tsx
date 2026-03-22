@@ -27,7 +27,7 @@ const calculateTimeLeft = (target: Date): TimeLeft => {
   };
 };
 
-const CountdownTimer: React.FC<CountdownTimerProps> = ({ targetDate, compact = false, className = '' }) => {
+const CountdownTimer = ({ targetDate, compact = false, className = '' }: CountdownTimerProps) => {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => calculateTimeLeft(targetDate));
 
   useEffect(() => {
