@@ -244,7 +244,7 @@ const Index: React.FC = () => {
               <h2 className="text-3xl md:text-5xl font-display font-bold mb-4">
                 Choose Your <span className="text-gradient">Battlefield</span>
               </h2>
-              <p className="text-muted-foreground">Solo tournaments only • Mobile devices required</p>
+              <p className="text-muted-foreground">Solo, Duo & Squad modes • Mobile devices required</p>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
