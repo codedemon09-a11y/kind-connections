@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import DepositDialog from '@/components/DepositDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +24,7 @@ import {
   XCircle,
   Clock,
   Loader2,
+  Plus,
 } from 'lucide-react';
 import {
   Dialog,
@@ -43,6 +45,7 @@ const WalletPage: React.FC = () => {
   const [upiId, setUpiId] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
+  const [depositDialogOpen, setDepositDialogOpen] = useState(false);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -97,6 +100,8 @@ const WalletPage: React.FC = () => {
         return <ArrowDownLeft className="w-4 h-4 text-warning" />;
       case 'REFUND':
         return <ArrowDownLeft className="w-4 h-4 text-primary" />;
+      case 'DEPOSIT':
+        return <Plus className="w-4 h-4 text-success" />;
       default:
         return <CreditCard className="w-4 h-4" />;
     }
@@ -191,14 +196,18 @@ const WalletPage: React.FC = () => {
                 </Card>
               </div>
 
-              {/* Withdraw Button */}
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button size="lg" variant="outline" onClick={() => setDepositDialogOpen(true)} className="flex-1 sm:flex-none">
+                  <Plus className="w-4 h-4" />
+                  Add Funds
+                </Button>
+                <Button size="lg" className="flex-1 sm:flex-none" disabled={user.winningCredits < 30} onClick={() => setWithdrawDialogOpen(true)}>
+                  <ArrowDownLeft className="w-4 h-4" />
+                  Withdraw to UPI
+                </Button>
+              </div>
               <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="w-full sm:w-auto" disabled={user.winningCredits < 30}>
-                    <ArrowDownLeft className="w-4 h-4" />
-                    Withdraw to UPI
-                  </Button>
-                </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Withdraw Funds</DialogTitle>
@@ -340,6 +349,7 @@ const WalletPage: React.FC = () => {
         </div>
       </main>
 
+      <DepositDialog open={depositDialogOpen} onOpenChange={setDepositDialogOpen} />
       <Footer />
     </div>
   );

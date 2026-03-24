@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Menu,
   X,
+  BarChart3,
+  Settings,
 } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
@@ -32,6 +34,8 @@ const AdminLayout: React.FC = () => {
     { label: 'Tournaments', href: '/admin/tournaments', icon: Gamepad2 },
     { label: 'Users', href: '/admin/users', icon: Users },
     { label: 'Withdrawals', href: '/admin/withdrawals', icon: CreditCard },
+    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
   const isActive = (path: string) => {
