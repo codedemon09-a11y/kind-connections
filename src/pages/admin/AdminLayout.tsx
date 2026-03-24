@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Menu,
   X,
+  BarChart3,
+  Settings,
 } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
