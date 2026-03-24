@@ -351,6 +351,7 @@ const WalletPage: React.FC = () => {
         </div>
       </main>
 
+      <DepositDialog open={depositDialogOpen} onOpenChange={setDepositDialogOpen} />
       <Footer />
     </div>
   );
