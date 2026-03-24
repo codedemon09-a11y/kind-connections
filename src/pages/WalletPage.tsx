@@ -202,7 +202,8 @@ const WalletPage: React.FC = () => {
                   <Plus className="w-4 h-4" />
                   Add Funds
                 </Button>
-                <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
+              </div>
+              <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="lg" className="w-full sm:w-auto" disabled={user.winningCredits < 30}>
                     <ArrowDownLeft className="w-4 h-4" />
