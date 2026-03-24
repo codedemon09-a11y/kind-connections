@@ -208,12 +208,6 @@ const WalletPage: React.FC = () => {
                 </Button>
               </div>
               <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="w-full sm:w-auto" disabled={user.winningCredits < 30}>
-                    <ArrowDownLeft className="w-4 h-4" />
-                    Withdraw to UPI
-                  </Button>
-                </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Withdraw Funds</DialogTitle>
