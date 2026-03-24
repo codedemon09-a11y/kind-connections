@@ -452,6 +452,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) { console.error('Error recording payment transaction:', error); throw error; }
   }, []);
 
+  const depositFunds = useCallback(async (userId: string, amount: number, paymentId: string) => {
+    try {
+      const { newBalance } = await runTransaction(db, async (tx) => {
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await tx.get(userRef);
+        if (!userSnap.exists()) throw new Error('User not found');
+        const currentBalance = Number(userSnap.data().walletBalance || 0);
+        const updatedBalance = currentBalance + amount;
+        tx.update(userRef, { walletBalance: updatedBalance, updatedAt: Timestamp.now() });
+        const txnRef = doc(collection(db, 'transactions'));
+        tx.set(txnRef, {
+          userId, type: 'DEPOSIT', amount, description: `Wallet deposit via Razorpay`,
+          referenceId: paymentId, createdAt: Timestamp.now(),
+        });
+        return { newBalance: updatedBalance };
+      });
+      setUser((prev) => (prev?.id === userId ? { ...prev, walletBalance: newBalance } : prev));
+    } catch (error) { console.error('Error depositing funds:', error); throw error; }
+  }, [setUser]);
+
   const requestWithdrawal = useCallback(
     async (oderId: string, amount: number, upiId: string) => {
       try {
