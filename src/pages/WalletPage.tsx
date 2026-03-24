@@ -45,6 +45,7 @@ const WalletPage: React.FC = () => {
   const [upiId, setUpiId] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
+  const [depositDialogOpen, setDepositDialogOpen] = useState(false);
 
   useEffect(() => {
     if (isAuthLoading) return;
