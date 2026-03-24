@@ -202,6 +202,10 @@ const WalletPage: React.FC = () => {
                   <Plus className="w-4 h-4" />
                   Add Funds
                 </Button>
+                <Button size="lg" className="flex-1 sm:flex-none" disabled={user.winningCredits < 30} onClick={() => setWithdrawDialogOpen(true)}>
+                  <ArrowDownLeft className="w-4 h-4" />
+                  Withdraw to UPI
+                </Button>
               </div>
               <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
                 <DialogTrigger asChild>
