@@ -196,8 +196,13 @@ const WalletPage: React.FC = () => {
                 </Card>
               </div>
 
-              {/* Withdraw Button */}
-              <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button size="lg" variant="outline" onClick={() => setDepositDialogOpen(true)} className="flex-1 sm:flex-none">
+                  <Plus className="w-4 h-4" />
+                  Add Funds
+                </Button>
+                <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="lg" className="w-full sm:w-auto" disabled={user.winningCredits < 30}>
                     <ArrowDownLeft className="w-4 h-4" />
