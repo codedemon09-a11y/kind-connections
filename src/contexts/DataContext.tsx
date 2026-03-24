@@ -60,6 +60,7 @@ interface DataContextType {
   getTournamentRegistrations: (tournamentId: string) => Promise<TournamentRegistration[]>;
   updateUserBalance: (userId: string, winningCredits: number) => void;
   addPaymentTransaction: (payment: Omit<PaymentTransaction, 'id' | 'createdAt'>) => Promise<void>;
+  depositFunds: (userId: string, amount: number, paymentId: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
