@@ -100,6 +100,8 @@ const WalletPage: React.FC = () => {
         return <ArrowDownLeft className="w-4 h-4 text-warning" />;
       case 'REFUND':
         return <ArrowDownLeft className="w-4 h-4 text-primary" />;
+      case 'DEPOSIT':
+        return <Plus className="w-4 h-4 text-success" />;
       default:
         return <CreditCard className="w-4 h-4" />;
     }
