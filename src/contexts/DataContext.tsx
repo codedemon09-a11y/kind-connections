@@ -592,7 +592,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         fetchAllUsers, fetchMatchHistory, joinTournament, createTournament, deleteTournament,
         updateTournamentRoom, updateTournamentStatus, addTournamentResult, distributePrizes,
         requestWithdrawal, processWithdrawal, disqualifyPlayer, banUser, deleteUser,
-        getTournamentRegistrations, updateUserBalance, addPaymentTransaction,
+        getTournamentRegistrations, updateUserBalance, addPaymentTransaction, depositFunds,
       }}
     >
       {children}
